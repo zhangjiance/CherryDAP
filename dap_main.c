@@ -48,9 +48,9 @@
 
 #define MSC_INTF_NUM (3 + CONFIG_CHERRYDAP_USE_CUSTOM_HID)
 
-#define DFU_RUNTIME_INTF_NUM (3 + CONFIG_CHERRYDAP_USE_CUSTOM_HID + CONFIG_CHERRYDAP_USE_MSC)
+#define WEBUSB_INTF_NUM (3 + CONFIG_CHERRYDAP_USE_CUSTOM_HID + CONFIG_CHERRYDAP_USE_MSC)
 
-#define WEBUSB_INTF_NUM (DFU_RUNTIME_INTF_NUM + USBD_DFU_RUNTIME_ENABLE)
+#define DFU_RUNTIME_INTF_NUM (WEBUSB_INTF_NUM + USBD_WEBUSB_ENABLE)
 
 #define WEBUSB_URL_STRINGS                                 \
     'c', 'h', 'e', 'r', 'r', 'y', 'd', 'a', 'p', '.', 'c', 'h', 'e', 'r', 'r', 'y', '-', 'e', 'm', 'b', 'e', 'd', 'd', 'e', 'd', '.', 'o', 'r', 'g',
@@ -237,6 +237,9 @@ static const uint8_t config_descriptor[] = {
 #if CONFIG_CHERRYDAP_USE_MSC
     MSC_DESCRIPTOR_INIT(MSC_INTF_NUM, MSC_OUT_EP, MSC_IN_EP, DAP_PACKET_SIZE, 0x00),
 #endif
+#if USBD_WEBUSB_ENABLE
+    USB_INTERFACE_DESCRIPTOR_INIT(WEBUSB_INTF_NUM, 0x00, 0x00, 0xff, 0x00, 0x00, 0x04),
+#endif
 #if USBD_DFU_RUNTIME_ENABLE
     USB_INTERFACE_DESCRIPTOR_INIT(DFU_RUNTIME_INTF_NUM, 0x00, 0x00, USB_DEVICE_CLASS_APP_SPECIFIC, DFU_SUBCLASS_DFU, DFU_PROTOCOL_RUNTIME, 0x05),
     0x09,                          /* bLength */
@@ -245,9 +248,6 @@ static const uint8_t config_descriptor[] = {
     WBVAL(1000),                   /* wDetachTimeout (ms) */
     WBVAL(DAP_PACKET_SIZE),        /* wTransferSize */
     WBVAL(DFU_VERSION),            /* bcdDFUVersion */
-#endif
-#if USBD_WEBUSB_ENABLE
-    USB_INTERFACE_DESCRIPTOR_INIT(WEBUSB_INTF_NUM, 0x00, 0x00, 0xff, 0x00, 0x00, 0x04),
 #endif
 };
 
@@ -266,6 +266,9 @@ static const uint8_t other_speed_config_descriptor[] = {
 #if CONFIG_CHERRYDAP_USE_MSC
     MSC_DESCRIPTOR_INIT(MSC_INTF_NUM, MSC_OUT_EP, MSC_IN_EP, DAP_PACKET_SIZE, 0x00),
 #endif
+#if USBD_WEBUSB_ENABLE
+    USB_INTERFACE_DESCRIPTOR_INIT(WEBUSB_INTF_NUM, 0x00, 0x00, 0xff, 0x00, 0x00, 0x04),
+#endif
 #if USBD_DFU_RUNTIME_ENABLE
     USB_INTERFACE_DESCRIPTOR_INIT(DFU_RUNTIME_INTF_NUM, 0x00, 0x00, USB_DEVICE_CLASS_APP_SPECIFIC, DFU_SUBCLASS_DFU, DFU_PROTOCOL_RUNTIME, 0x05),
     0x09,                          /* bLength */
@@ -274,9 +277,6 @@ static const uint8_t other_speed_config_descriptor[] = {
     WBVAL(1000),                   /* wDetachTimeout (ms) */
     WBVAL(DAP_PACKET_SIZE),        /* wTransferSize */
     WBVAL(DFU_VERSION),            /* bcdDFUVersion */
-#endif
-#if USBD_WEBUSB_ENABLE
-    USB_INTERFACE_DESCRIPTOR_INIT(WEBUSB_INTF_NUM, 0x00, 0x00, 0xff, 0x00, 0x00, 0x04),
 #endif
 };
 
@@ -668,16 +668,16 @@ void chry_dap_init(uint8_t busid, uint32_t reg_base)
 #if CONFIG_CHERRYDAP_USE_MSC
     usbd_add_interface(0, usbd_msc_init_intf(0, &intf3, MSC_OUT_EP, MSC_IN_EP));
 #endif
+#if USBD_WEBUSB_ENABLE
+    /* Keep interface numbering aligned with descriptors even if WebUSB has no class handler. */
+    usbd_add_interface(0, &webusb_intf);
+#endif
 #if USBD_DFU_RUNTIME_ENABLE
     dfu_runtime_intf.class_interface_handler = dfu_runtime_class_interface_request_handler;
     dfu_runtime_intf.class_endpoint_handler = NULL;
     dfu_runtime_intf.vendor_handler = NULL;
     dfu_runtime_intf.notify_handler = dfu_runtime_notify_handler;
     usbd_add_interface(0, &dfu_runtime_intf);
-#endif
-#if USBD_WEBUSB_ENABLE
-    /* Keep interface numbering aligned with descriptors even if WebUSB has no class handler. */
-    usbd_add_interface(0, &webusb_intf);
 #endif
     usbd_initialize(busid, reg_base, usbd_event_handler);
 }
