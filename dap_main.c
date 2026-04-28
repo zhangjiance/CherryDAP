@@ -17,7 +17,9 @@
 #define USBD_WINUSB_ENABLE 1
 #define USBD_DFU_RUNTIME_ENABLE 1
 
-#define DFU_RUNTIME_DESC_SIZE 18
+#define IAD_DESC_SIZE 8
+#define WEBUSB_DESC_SIZE (IAD_DESC_SIZE + 9)
+#define DFU_RUNTIME_DESC_SIZE (IAD_DESC_SIZE + 18)
 
 /* WinUSB Microsoft OS 2.0 descriptor sizes */
 #define WINUSB_DESCRIPTOR_SET_HEADER_SIZE  10
@@ -42,7 +44,7 @@
                          CONFIG_CHERRYDAP_USE_CUSTOM_HID * CUSTOM_HID_LEN +      \
                          CONFIG_CHERRYDAP_USE_MSC * MSC_DESCRIPTOR_LEN +          \
                          USBD_DFU_RUNTIME_ENABLE * DFU_RUNTIME_DESC_SIZE +        \
-                         USBD_WEBUSB_ENABLE * 9)
+                         USBD_WEBUSB_ENABLE * WEBUSB_DESC_SIZE)
 
 #define INTF_NUM (1 + 2 + CONFIG_CHERRYDAP_USE_CUSTOM_HID + CONFIG_CHERRYDAP_USE_MSC + USBD_DFU_RUNTIME_ENABLE + USBD_WEBUSB_ENABLE)
 
@@ -238,16 +240,18 @@ static const uint8_t config_descriptor[] = {
     MSC_DESCRIPTOR_INIT(MSC_INTF_NUM, MSC_OUT_EP, MSC_IN_EP, DAP_PACKET_SIZE, 0x00),
 #endif
 #if USBD_WEBUSB_ENABLE
+    0x08, 0x0B, WEBUSB_INTF_NUM, 0x01, 0xFF, 0x00, 0x00, 0x04,
     USB_INTERFACE_DESCRIPTOR_INIT(WEBUSB_INTF_NUM, 0x00, 0x00, 0xff, 0x00, 0x00, 0x04),
 #endif
 #if USBD_DFU_RUNTIME_ENABLE
+    0x08, 0x0B, DFU_RUNTIME_INTF_NUM, 0x01, USB_DEVICE_CLASS_APP_SPECIFIC, DFU_SUBCLASS_DFU, DFU_PROTOCOL_RUNTIME, 0x05,
     USB_INTERFACE_DESCRIPTOR_INIT(DFU_RUNTIME_INTF_NUM, 0x00, 0x00, USB_DEVICE_CLASS_APP_SPECIFIC, DFU_SUBCLASS_DFU, DFU_PROTOCOL_RUNTIME, 0x05),
     0x09,                          /* bLength */
     DFU_FUNC_DESC,                 /* bDescriptorType */
-    DFU_ATTR_WILL_DETACH | DFU_ATTR_MANIFESTATION_TOLERANT, /* bmAttributes */
-    WBVAL(1000),                   /* wDetachTimeout (ms) */
-    WBVAL(DAP_PACKET_SIZE),        /* wTransferSize */
-    WBVAL(DFU_VERSION),            /* bcdDFUVersion */
+    DFU_ATTR_WILL_DETACH | DFU_ATTR_CAN_DNLOAD, /* bmAttributes (0x09) */
+    WBVAL(0xff),                   /* wDetachTimeout (ms) */
+    WBVAL(0x400),        /* wTransferSize */
+    WBVAL(0x011a),            /* bcdDFUVersion */
 #endif
 };
 
@@ -267,16 +271,18 @@ static const uint8_t other_speed_config_descriptor[] = {
     MSC_DESCRIPTOR_INIT(MSC_INTF_NUM, MSC_OUT_EP, MSC_IN_EP, DAP_PACKET_SIZE, 0x00),
 #endif
 #if USBD_WEBUSB_ENABLE
+    0x08, 0x0B, WEBUSB_INTF_NUM, 0x01, 0xFF, 0x00, 0x00, 0x04,
     USB_INTERFACE_DESCRIPTOR_INIT(WEBUSB_INTF_NUM, 0x00, 0x00, 0xff, 0x00, 0x00, 0x04),
 #endif
 #if USBD_DFU_RUNTIME_ENABLE
+    0x08, 0x0B, DFU_RUNTIME_INTF_NUM, 0x01, USB_DEVICE_CLASS_APP_SPECIFIC, DFU_SUBCLASS_DFU, DFU_PROTOCOL_RUNTIME, 0x05,
     USB_INTERFACE_DESCRIPTOR_INIT(DFU_RUNTIME_INTF_NUM, 0x00, 0x00, USB_DEVICE_CLASS_APP_SPECIFIC, DFU_SUBCLASS_DFU, DFU_PROTOCOL_RUNTIME, 0x05),
     0x09,                          /* bLength */
     DFU_FUNC_DESC,                 /* bDescriptorType */
-    DFU_ATTR_WILL_DETACH | DFU_ATTR_MANIFESTATION_TOLERANT, /* bmAttributes */
-    WBVAL(1000),                   /* wDetachTimeout (ms) */
-    WBVAL(DAP_PACKET_SIZE),        /* wTransferSize */
-    WBVAL(DFU_VERSION),            /* bcdDFUVersion */
+    DFU_ATTR_WILL_DETACH | DFU_ATTR_CAN_DNLOAD, /* bmAttributes (0x09) */
+    WBVAL(0xff),                   /* wDetachTimeout (ms) */
+    WBVAL(0x400),        /* wTransferSize */
+    WBVAL(0x011a),            /* bcdDFUVersion */
 #endif
 };
 
@@ -401,6 +407,24 @@ USB_NOCACHE_RAM_SECTION chry_ringbuffer_t g_usbrx;
 #if USBD_DFU_RUNTIME_ENABLE
 static uint8_t g_dfu_runtime_state = DFU_STATE_APP_IDLE;
 static uint8_t g_dfu_runtime_status[6] = { DFU_STATUS_OK, 0, 0, 0, DFU_STATE_APP_IDLE, 0 };
+static volatile uint8_t g_dfu_runtime_detach_pending = 0;
+static volatile uint32_t g_dfu_runtime_detach_delay = 0;
+
+#define DFU_RUNTIME_DETACH_DELAY_LOOPS 200000U
+
+static void dfu_runtime_poll(void)
+{
+    if (!g_dfu_runtime_detach_pending) {
+        return;
+    }
+
+    if (g_dfu_runtime_detach_delay > 0) {
+        g_dfu_runtime_detach_delay--;
+        return;
+    }
+
+    board_request_bootloader();
+}
 
 static int dfu_runtime_class_interface_request_handler(uint8_t busid, struct usb_setup_packet *setup, uint8_t **data, uint32_t *len)
 {
@@ -410,10 +434,17 @@ static int dfu_runtime_class_interface_request_handler(uint8_t busid, struct usb
         case DFU_REQUEST_DETACH:
             g_dfu_runtime_state = DFU_STATE_APP_DETACH;
             g_dfu_runtime_status[4] = g_dfu_runtime_state;
-            /* Match BlackMagic behavior: request bootloader, then core reset. */
-            board_request_bootloader();
+            /* Defer reset until after EP0 status stage has time to complete. */
+            g_dfu_runtime_detach_pending = 1;
+            g_dfu_runtime_detach_delay = DFU_RUNTIME_DETACH_DELAY_LOOPS;
             break;
         case DFU_REQUEST_GETSTATUS:
+            if (g_dfu_runtime_state == DFU_STATE_APP_DETACH) {
+                /* Suggest host poll again while detach is in progress. */
+                g_dfu_runtime_status[1] = 10;
+                g_dfu_runtime_status[2] = 0;
+                g_dfu_runtime_status[3] = 0;
+            }
             memcpy(*data, g_dfu_runtime_status, sizeof(g_dfu_runtime_status));
             *len = sizeof(g_dfu_runtime_status);
             break;
@@ -442,6 +473,8 @@ static void dfu_runtime_notify_handler(uint8_t busid, uint8_t event, void *arg)
 
     if (event == USBD_EVENT_RESET) {
         g_dfu_runtime_state = DFU_STATE_APP_IDLE;
+        g_dfu_runtime_detach_pending = 0;
+        g_dfu_runtime_detach_delay = 0;
         g_dfu_runtime_status[0] = DFU_STATUS_OK;
         g_dfu_runtime_status[1] = 0;
         g_dfu_runtime_status[2] = 0;
@@ -684,6 +717,10 @@ void chry_dap_init(uint8_t busid, uint32_t reg_base)
 
 void chry_dap_handle(void)
 {
+#if USBD_DFU_RUNTIME_ENABLE
+    dfu_runtime_poll();
+#endif
+
     uint32_t n;
 
     // Process pending requests
