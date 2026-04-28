@@ -23,7 +23,7 @@
 #define HID_OUT_EP 0x09
 
 #define USBD_VID           0x0D28
-#define USBD_PID           0x0204
+#define USBD_PID           0x0205
 #define USBD_MAX_POWER     500
 #define USBD_LANGID_STRING 1033
 

@@ -1,0 +1,90 @@
+/*!
+ * @file       board.h
+ *
+ * @brief      Board configuration for CherryDAP on APM32E103
+ *
+ * @note       Pin definitions based on BlackMagic Native Hardware Version 3
+ *             (Mini V2.1a - compatible with HW3/4/5, before HW6 redesign)
+ */
+
+#ifndef __BOARD_H
+#define __BOARD_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "apm32e10x.h"
+#include "apm32e10x_gpio.h"
+#include "apm32e10x_rcm.h"
+#include "apm32e10x_misc.h"
+#include <stdbool.h>
+
+/* LED Pin Definitions - BlackMagic Native HW3 */
+#define LED_PORT            GPIOB
+#define LED_RCC             RCM_APB2_PERIPH_GPIOB
+
+#define LED_RUNNING_PIN     GPIO_PIN_2   /* PB2 - LED0 Yellow (Running) */
+#define LED_IDLE_PIN        GPIO_PIN_10  /* PB10 - LED1 Orange (Idle) */
+#define LED_ERROR_PIN       GPIO_PIN_11  /* PB11 - LED2 Red (Error) */
+
+/* JTAG/SWD Pin Definitions - BlackMagic Native HW3 */
+#define JTAG_PORT           GPIOA
+#define JTAG_RCC            RCM_APB2_PERIPH_GPIOA
+
+#define TDI_PIN             GPIO_PIN_3   /* PA3 (HW3/4/5), PA7 on HW6+ */
+#define TMS_SWDIO_PIN       GPIO_PIN_4   /* PA4 (all versions) */
+#define TCK_SWCLK_PIN       GPIO_PIN_5   /* PA5 (all versions) */
+#define TDO_PIN             GPIO_PIN_6   /* PA6 (all versions) */
+#define NRST_PIN            GPIO_PIN_2   /* PA2 (HW3/4/5), PA9 on HW6+ */
+
+#define TRST_PORT           GPIOC
+#define TRST_PIN            GPIO_PIN_13  /* PC13 (actual hardware) */
+
+/* UART Pin Definitions - BlackMagic Native HW3 */
+#define UART_TX_PORT        GPIOA
+#define UART_TX_PIN         GPIO_PIN_9   /* PA9 - USART1_TX (HW3/4/5), PA2/USART2 on HW6+ */
+#define UART_RX_PORT        GPIOA  
+#define UART_RX_PIN         GPIO_PIN_10  /* PA10 - USART1_RX (HW3/4/5), PA3/USART2 on HW6+ */
+
+/* USB Pin Definitions - All HW versions */
+#define USB_PORT            GPIOA
+#define USB_DP_PIN          GPIO_PIN_12  /* PA12 - USB D+ */
+#define USB_DM_PIN          GPIO_PIN_11  /* PA11 - USB D- */
+#define USB_PU_PORT         GPIOA
+#define USB_PU_PIN          GPIO_PIN_8   /* PA8 - USB Pull-up control */
+
+/* Bootloader request pin (BlackMagic native_plus style) */
+#define BOOT_REQ_PORT        GPIOB
+#define BOOT_REQ_PIN         GPIO_PIN_12
+#define BOOT_REQ_RCC         RCM_APB2_PERIPH_GPIOB
+
+/* Target power switch (compatible with BlackMagic native HW3 tpwr control) */
+#define TPWR_CTRL_PORT      GPIOB
+#define TPWR_CTRL_PIN       GPIO_PIN_1   /* PB1 - tpwr bridge control */
+#define TPWR_CTRL_RCC       RCM_APB2_PERIPH_GPIOB
+
+/* Target voltage sense (BlackMagic native style): PB0 -> ADC1 CH8, divider 4.7K + 10K */
+#define TPWR_SENSE_PORT     GPIOB
+#define TPWR_SENSE_PIN      GPIO_PIN_0
+#define TPWR_SENSE_RCC      RCM_APB2_PERIPH_GPIOB
+
+/* Function prototypes */
+void board_init(void);
+void board_led_init(void);
+void board_led_on(uint8_t led_num);
+void board_led_off(uint8_t led_num);
+void board_led_toggle(uint8_t led_num);
+void board_target_power_init(void);
+void board_target_power_set(bool enable);
+bool board_target_power_get(void);
+uint32_t board_target_voltage_adc_mv(void);
+uint32_t board_target_voltage_sense_mv(void);
+bool board_target_voltage_is_present(uint32_t threshold_mv);
+void board_request_bootloader(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __BOARD_H */

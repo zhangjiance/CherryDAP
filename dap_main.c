@@ -1,4 +1,6 @@
 #include "dap_main.h"
+#include "board.h"
+#include "usb_dfu.h"
 
 #define CMSIS_DAP_INTERFACE_SIZE (9 + 7 + 7)
 #define CUSTOM_HID_LEN           (9 + 9 + 7 + 7)
@@ -13,6 +15,9 @@
 #define USBD_WEBUSB_ENABLE 1
 #define USBD_BULK_ENABLE   1
 #define USBD_WINUSB_ENABLE 1
+#define USBD_DFU_RUNTIME_ENABLE 1
+
+#define DFU_RUNTIME_DESC_SIZE 18
 
 /* WinUSB Microsoft OS 2.0 descriptor sizes */
 #define WINUSB_DESCRIPTOR_SET_HEADER_SIZE  10
@@ -22,7 +27,7 @@
 #define FUNCTION_SUBSET_LEN                160
 #define DEVICE_INTERFACE_GUIDS_FEATURE_LEN 132
 
-#define USBD_WINUSB_DESC_SET_LEN (WINUSB_DESCRIPTOR_SET_HEADER_SIZE + USBD_WEBUSB_ENABLE * FUNCTION_SUBSET_LEN + USBD_BULK_ENABLE * FUNCTION_SUBSET_LEN)
+#define USBD_WINUSB_DESC_SET_LEN (WINUSB_DESCRIPTOR_SET_HEADER_SIZE + USBD_WEBUSB_ENABLE * FUNCTION_SUBSET_LEN + USBD_BULK_ENABLE * FUNCTION_SUBSET_LEN + USBD_DFU_RUNTIME_ENABLE * FUNCTION_SUBSET_LEN)
 
 #define USBD_NUM_DEV_CAPABILITIES (USBD_WEBUSB_ENABLE + USBD_WINUSB_ENABLE)
 
@@ -35,13 +40,17 @@
 
 #define USB_CONFIG_SIZE (9 + CMSIS_DAP_INTERFACE_SIZE + CDC_ACM_DESCRIPTOR_LEN + \
                          CONFIG_CHERRYDAP_USE_CUSTOM_HID * CUSTOM_HID_LEN +      \
-                         CONFIG_CHERRYDAP_USE_MSC * MSC_DESCRIPTOR_LEN + USBD_WEBUSB_ENABLE * 9)
+                         CONFIG_CHERRYDAP_USE_MSC * MSC_DESCRIPTOR_LEN +          \
+                         USBD_DFU_RUNTIME_ENABLE * DFU_RUNTIME_DESC_SIZE +        \
+                         USBD_WEBUSB_ENABLE * 9)
 
-#define INTF_NUM (1 + 2 + CONFIG_CHERRYDAP_USE_CUSTOM_HID + CONFIG_CHERRYDAP_USE_MSC + USBD_WEBUSB_ENABLE)
+#define INTF_NUM (1 + 2 + CONFIG_CHERRYDAP_USE_CUSTOM_HID + CONFIG_CHERRYDAP_USE_MSC + USBD_DFU_RUNTIME_ENABLE + USBD_WEBUSB_ENABLE)
 
 #define MSC_INTF_NUM (3 + CONFIG_CHERRYDAP_USE_CUSTOM_HID)
 
-#define WEBUSB_INTF_NUM (3 + CONFIG_CHERRYDAP_USE_CUSTOM_HID + CONFIG_CHERRYDAP_USE_MSC)
+#define DFU_RUNTIME_INTF_NUM (3 + CONFIG_CHERRYDAP_USE_CUSTOM_HID + CONFIG_CHERRYDAP_USE_MSC)
+
+#define WEBUSB_INTF_NUM (DFU_RUNTIME_INTF_NUM + USBD_DFU_RUNTIME_ENABLE)
 
 #define WEBUSB_URL_STRINGS                                 \
     'c', 'h', 'e', 'r', 'r', 'y', 'd', 'a', 'p', '.', 'c', 'h', 'e', 'r', 'r', 'y', '-', 'e', 'm', 'b', 'e', 'd', 'd', 'e', 'd', '.', 'o', 'r', 'g',
@@ -101,7 +110,33 @@ __ALIGN_BEGIN const uint8_t USBD_WinUSBDescriptorSetDescriptor[] = {
     '4', 0, '6', 0, '6', 0, '3', 0, '-', 0,
     'A', 0, 'A', 0, '3', 0, '6', 0, '-',
     0, '1', 0, 'A', 0, 'A', 0, 'E', 0, '4', 0, '6', 0, '4', 0, '6', 0, '3', 0, '7', 0, '7', 0, '6', 0,
-    '}', 0, 0, 0, 0, 0
+    '}', 0, 0, 0, 0, 0,
+#endif
+#if USBD_DFU_RUNTIME_ENABLE
+    WBVAL(WINUSB_FUNCTION_SUBSET_HEADER_SIZE), /* wLength */
+    WBVAL(WINUSB_SUBSET_HEADER_FUNCTION_TYPE), /* wDescriptorType */
+    DFU_RUNTIME_INTF_NUM,                      /* bFirstInterface */
+    0,                                         /* bReserved */
+    WBVAL(FUNCTION_SUBSET_LEN),                /* wSubsetLength */
+    WBVAL(WINUSB_FEATURE_COMPATIBLE_ID_SIZE),  /* wLength */
+    WBVAL(WINUSB_FEATURE_COMPATIBLE_ID_TYPE),  /* wDescriptorType */
+    'W', 'I', 'N', 'U', 'S', 'B', 0, 0,        /* CompatibleId */
+    0, 0, 0, 0, 0, 0, 0, 0,                    /* SubCompatibleId */
+    WBVAL(DEVICE_INTERFACE_GUIDS_FEATURE_LEN), /* wLength */
+    WBVAL(WINUSB_FEATURE_REG_PROPERTY_TYPE),   /* wDescriptorType */
+    WBVAL(WINUSB_PROP_DATA_TYPE_REG_MULTI_SZ), /* wPropertyDataType */
+    WBVAL(42),                                 /* wPropertyNameLength */
+    'D', 0, 'e', 0, 'v', 0, 'i', 0, 'c', 0, 'e', 0,
+    'I', 0, 'n', 0, 't', 0, 'e', 0, 'r', 0, 'f', 0, 'a', 0, 'c', 0, 'e', 0,
+    'G', 0, 'U', 0, 'I', 0, 'D', 0, 's', 0, 0, 0,
+    WBVAL(80), /* wPropertyDataLength */
+    '{', 0,
+    '2', 0, 'A', 0, '2', 0, '0', 0, '3', 0, '6', 0, '0', 0, 'D', 0, '-', 0,
+    'F', 0, 'B', 0, 'D', 0, '1', 0, '-', 0,
+    '4', 0, 'A', 0, 'E', 0, '1', 0, '-', 0,
+    'B', 0, 'B', 0, '7', 0, 'D', 0, '-', 0,
+    '2', 0, '9', 0, '3', 0, 'B', 0, 'D', 0, 'E', 0, '8', 0, 'A', 0, 'F', 0, '5', 0, '4', 0, '8', 0, '9', 0,
+    '}', 0, 0, 0, 0, 0,
 #endif
 };
 
@@ -202,6 +237,15 @@ static const uint8_t config_descriptor[] = {
 #if CONFIG_CHERRYDAP_USE_MSC
     MSC_DESCRIPTOR_INIT(MSC_INTF_NUM, MSC_OUT_EP, MSC_IN_EP, DAP_PACKET_SIZE, 0x00),
 #endif
+#if USBD_DFU_RUNTIME_ENABLE
+    USB_INTERFACE_DESCRIPTOR_INIT(DFU_RUNTIME_INTF_NUM, 0x00, 0x00, USB_DEVICE_CLASS_APP_SPECIFIC, DFU_SUBCLASS_DFU, DFU_PROTOCOL_RUNTIME, 0x05),
+    0x09,                          /* bLength */
+    DFU_FUNC_DESC,                 /* bDescriptorType */
+    DFU_ATTR_WILL_DETACH | DFU_ATTR_MANIFESTATION_TOLERANT, /* bmAttributes */
+    WBVAL(1000),                   /* wDetachTimeout (ms) */
+    WBVAL(DAP_PACKET_SIZE),        /* wTransferSize */
+    WBVAL(DFU_VERSION),            /* bcdDFUVersion */
+#endif
 #if USBD_WEBUSB_ENABLE
     USB_INTERFACE_DESCRIPTOR_INIT(WEBUSB_INTF_NUM, 0x00, 0x00, 0xff, 0x00, 0x00, 0x04),
 #endif
@@ -220,7 +264,16 @@ static const uint8_t other_speed_config_descriptor[] = {
     HID_DESC(),
 #endif
 #if CONFIG_CHERRYDAP_USE_MSC
-    MSC_DESCRIPTOR_INIT(0x04, MSC_OUT_EP, MSC_IN_EP, DAP_PACKET_SIZE, 0x00),
+    MSC_DESCRIPTOR_INIT(MSC_INTF_NUM, MSC_OUT_EP, MSC_IN_EP, DAP_PACKET_SIZE, 0x00),
+#endif
+#if USBD_DFU_RUNTIME_ENABLE
+    USB_INTERFACE_DESCRIPTOR_INIT(DFU_RUNTIME_INTF_NUM, 0x00, 0x00, USB_DEVICE_CLASS_APP_SPECIFIC, DFU_SUBCLASS_DFU, DFU_PROTOCOL_RUNTIME, 0x05),
+    0x09,                          /* bLength */
+    DFU_FUNC_DESC,                 /* bDescriptorType */
+    DFU_ATTR_WILL_DETACH | DFU_ATTR_MANIFESTATION_TOLERANT, /* bmAttributes */
+    WBVAL(1000),                   /* wDetachTimeout (ms) */
+    WBVAL(DAP_PACKET_SIZE),        /* wTransferSize */
+    WBVAL(DFU_VERSION),            /* bcdDFUVersion */
 #endif
 #if USBD_WEBUSB_ENABLE
     USB_INTERFACE_DESCRIPTOR_INIT(WEBUSB_INTF_NUM, 0x00, 0x00, 0xff, 0x00, 0x00, 0x04),
@@ -269,6 +322,7 @@ char *string_descriptors[] = {
     "CherryUSB CMSIS-DAP",              /* Product */
     "00000000000000000123456789ABCDEF", /* Serial Number */
     "CherryUSB WebUSB",
+    "CherryUSB DFU Runtime",
 };
 
 static const uint8_t device_quality_descriptor[] = {
@@ -344,6 +398,60 @@ static volatile uint8_t uarttx_idle_flag = 0;
 USB_NOCACHE_RAM_SECTION chry_ringbuffer_t g_uartrx;
 USB_NOCACHE_RAM_SECTION chry_ringbuffer_t g_usbrx;
 
+#if USBD_DFU_RUNTIME_ENABLE
+static uint8_t g_dfu_runtime_state = DFU_STATE_APP_IDLE;
+static uint8_t g_dfu_runtime_status[6] = { DFU_STATUS_OK, 0, 0, 0, DFU_STATE_APP_IDLE, 0 };
+
+static int dfu_runtime_class_interface_request_handler(uint8_t busid, struct usb_setup_packet *setup, uint8_t **data, uint32_t *len)
+{
+    (void)busid;
+
+    switch (setup->bRequest) {
+        case DFU_REQUEST_DETACH:
+            g_dfu_runtime_state = DFU_STATE_APP_DETACH;
+            g_dfu_runtime_status[4] = g_dfu_runtime_state;
+            /* Match BlackMagic behavior: request bootloader, then core reset. */
+            board_request_bootloader();
+            break;
+        case DFU_REQUEST_GETSTATUS:
+            memcpy(*data, g_dfu_runtime_status, sizeof(g_dfu_runtime_status));
+            *len = sizeof(g_dfu_runtime_status);
+            break;
+        case DFU_REQUEST_GETSTATE:
+            (*data)[0] = g_dfu_runtime_state;
+            *len = 1;
+            break;
+        case DFU_REQUEST_CLRSTATUS:
+        case DFU_REQUEST_ABORT:
+            g_dfu_runtime_state = DFU_STATE_APP_IDLE;
+            g_dfu_runtime_status[0] = DFU_STATUS_OK;
+            g_dfu_runtime_status[4] = g_dfu_runtime_state;
+            *len = 0;
+            break;
+        default:
+            return -1;
+    }
+
+    return 0;
+}
+
+static void dfu_runtime_notify_handler(uint8_t busid, uint8_t event, void *arg)
+{
+    (void)busid;
+    (void)arg;
+
+    if (event == USBD_EVENT_RESET) {
+        g_dfu_runtime_state = DFU_STATE_APP_IDLE;
+        g_dfu_runtime_status[0] = DFU_STATUS_OK;
+        g_dfu_runtime_status[1] = 0;
+        g_dfu_runtime_status[2] = 0;
+        g_dfu_runtime_status[3] = 0;
+        g_dfu_runtime_status[4] = DFU_STATE_APP_IDLE;
+        g_dfu_runtime_status[5] = 0;
+    }
+}
+#endif
+
 void usbd_event_handler(uint8_t busid, uint8_t event)
 {
     (void)busid;
@@ -353,10 +461,12 @@ void usbd_event_handler(uint8_t busid, uint8_t event)
             usbtx_idle_flag = 0;
             uarttx_idle_flag = 0;
             config_uart_transfer = 0;
+            board_target_power_set(false);
             break;
         case USBD_EVENT_CONNECTED:
             break;
         case USBD_EVENT_DISCONNECTED:
+            board_target_power_set(false);
             break;
         case USBD_EVENT_RESUME:
             break;
@@ -491,6 +601,14 @@ struct usbd_interface hid_intf;
 struct usbd_interface intf3;
 #endif
 
+#if USBD_WEBUSB_ENABLE
+struct usbd_interface webusb_intf;
+#endif
+
+#if USBD_DFU_RUNTIME_ENABLE
+struct usbd_interface dfu_runtime_intf;
+#endif
+
 struct usb_msosv2_descriptor msosv2_desc = {
     .vendor_code = USBD_WINUSB_VENDOR_CODE,
     .compat_id = USBD_WinUSBDescriptorSetDescriptor,
@@ -549,6 +667,17 @@ void chry_dap_init(uint8_t busid, uint32_t reg_base)
 
 #if CONFIG_CHERRYDAP_USE_MSC
     usbd_add_interface(0, usbd_msc_init_intf(0, &intf3, MSC_OUT_EP, MSC_IN_EP));
+#endif
+#if USBD_DFU_RUNTIME_ENABLE
+    dfu_runtime_intf.class_interface_handler = dfu_runtime_class_interface_request_handler;
+    dfu_runtime_intf.class_endpoint_handler = NULL;
+    dfu_runtime_intf.vendor_handler = NULL;
+    dfu_runtime_intf.notify_handler = dfu_runtime_notify_handler;
+    usbd_add_interface(0, &dfu_runtime_intf);
+#endif
+#if USBD_WEBUSB_ENABLE
+    /* Keep interface numbering aligned with descriptors even if WebUSB has no class handler. */
+    usbd_add_interface(0, &webusb_intf);
 #endif
     usbd_initialize(busid, reg_base, usbd_event_handler);
 }
@@ -618,6 +747,8 @@ void chry_dap_handle(void)
 void usbd_cdc_acm_set_line_coding(uint8_t busid, uint8_t intf, struct cdc_line_coding *line_coding)
 {
     (void)busid;
+    (void)intf;
+
     if (memcmp(line_coding, (uint8_t *)&g_cdc_lincoding, sizeof(struct cdc_line_coding)) != 0) {
         memcpy((uint8_t *)&g_cdc_lincoding, line_coding, sizeof(struct cdc_line_coding));
         config_uart = 1;
