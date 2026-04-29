@@ -332,10 +332,18 @@ void Set_Clock_Delay(uint32_t clock);
 #endif
 
 __STATIC_FORCEINLINE void PIN_DELAY_SLOW (uint32_t delay) {
-  volatile uint32_t count = delay;
-    do {
-        count -= 1;
-    } while (count);
+  if (delay == 0U) {
+    return;
+  }
+
+  __asm volatile (
+    "1:\n"
+    "subs %0, %0, #1\n"
+    "bne 1b\n"
+    : "+r" (delay)
+    :
+    : "cc"
+  );
 }
 
 // Fixed delay for fast clock generation

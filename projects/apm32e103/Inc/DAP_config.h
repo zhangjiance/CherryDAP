@@ -27,6 +27,8 @@
 /// Processor Clock
 #define CPU_CLOCK               120000000U
 #define IO_PORT_WRITE_CYCLES    2U
+#define DELAY_SLOW_CYCLES       3U
+#define DELAY_FAST_CYCLES       1U
 
 /// SWD/JTAG Configuration
 #define DAP_SWD                 1
@@ -85,10 +87,30 @@ __STATIC_INLINE uint8_t DAP_GetTargetDeviceVendorString (char *str) { (void)str;
 #define JTAG_NRST_PORT      GPIOA
 #define JTAG_NRST_PIN       GPIO_PIN_2  /* PA2 - nRST (HW3/4/5) */
 
+// Fast GPIO register access helpers
+__STATIC_FORCEINLINE void GPIO_SET_FAST(GPIO_T *port, uint32_t pin_mask) {
+    port->BSC = pin_mask;
+}
+
+__STATIC_FORCEINLINE void GPIO_CLR_FAST(GPIO_T *port, uint32_t pin_mask) {
+    port->BSC = (pin_mask << 16U);
+}
+
+__STATIC_FORCEINLINE uint32_t GPIO_READ_FAST(GPIO_T *port, uint32_t pin_mask) {
+    return (port->IDATA & pin_mask) ? 1U : 0U;
+}
+
+/* Native_plus style fixed SWDIO mode switching on PA4 (CFGLOW nibble #4). */
+#define SWD_CR          (JTAG_TMS_PORT->CFGLOW)
+#define SWD_CR_SHIFT    (4U << 2U)
+#define SWD_CR_MASK     (0xFU << SWD_CR_SHIFT)
+#define SWD_CR_FLOAT    (0x4U << SWD_CR_SHIFT) /* input floating */
+#define SWD_CR_DRIVE    (0x3U << SWD_CR_SHIFT) /* output push-pull 50MHz */
+
 // GPIO Macros
-#define PIN_SET(port, pin)      GPIO_SetBit(port, pin)
-#define PIN_CLR(port, pin)      GPIO_ResetBit(port, pin)
-#define PIN_READ(port, pin)     GPIO_ReadInputBit(port, pin)
+#define PIN_SET(port, pin)      GPIO_SET_FAST((port), (pin))
+#define PIN_CLR(port, pin)      GPIO_CLR_FAST((port), (pin))
+#define PIN_READ(port, pin)     GPIO_READ_FAST((port), (pin))
 
 __STATIC_INLINE void PORT_JTAG_SETUP (void) {
     GPIO_Config_T gpioConfig;
@@ -155,40 +177,86 @@ __STATIC_FORCEINLINE uint32_t PIN_SWDIO_TMS_IN  (void) { return PIN_READ(JTAG_TM
 __STATIC_FORCEINLINE void     PIN_SWDIO_TMS_SET (void) { PIN_SET(JTAG_TMS_PORT, JTAG_TMS_PIN); }
 __STATIC_FORCEINLINE void     PIN_SWDIO_TMS_CLR (void) { PIN_CLR(JTAG_TMS_PORT, JTAG_TMS_PIN); }
 __STATIC_FORCEINLINE uint32_t PIN_SWDIO_IN      (void) { return PIN_READ(JTAG_TMS_PORT, JTAG_TMS_PIN) ? 1U : 0U; }
-__STATIC_FORCEINLINE void     PIN_SWDIO_OUT     (uint32_t bit) { if (bit & 1U) PIN_SET(JTAG_TMS_PORT, JTAG_TMS_PIN); else PIN_CLR(JTAG_TMS_PORT, JTAG_TMS_PIN); }
+__STATIC_FORCEINLINE void     PIN_SWDIO_OUT     (uint32_t bit) { JTAG_TMS_PORT->BSC = (bit & 1U) ? JTAG_TMS_PIN : (JTAG_TMS_PIN << 16U); }
 
 __STATIC_FORCEINLINE void     PIN_SWDIO_OUT_ENABLE  (void) {
-    GPIO_Config_T gpioConfig;
+    uint32_t cr = SWD_CR;
+    cr &= ~SWD_CR_MASK;
+    cr |= SWD_CR_DRIVE;
+    /* native_plus ordering: set direction first, then switch pad to output. */
     PIN_SET(JTAG_TMS_DIR_PORT, JTAG_TMS_DIR_PIN);
-    gpioConfig.mode = GPIO_MODE_OUT_PP;
-    gpioConfig.speed = GPIO_SPEED_50MHz;
-    gpioConfig.pin = JTAG_TMS_PIN;
-    GPIO_Config(JTAG_TMS_PORT, &gpioConfig);
+    SWD_CR = cr;
+    __NOP();
 }
 
 __STATIC_FORCEINLINE void     PIN_SWDIO_OUT_DISABLE (void) {
-    GPIO_Config_T gpioConfig;
+    uint32_t cr = SWD_CR;
+    cr &= ~SWD_CR_MASK;
+    cr |= SWD_CR_FLOAT;
+    /* native_plus ordering: switch pad to input first, then release buffer direction. */
+    SWD_CR = cr;
     PIN_CLR(JTAG_TMS_DIR_PORT, JTAG_TMS_DIR_PIN);
-    gpioConfig.mode = GPIO_MODE_IN_PU;
-    gpioConfig.pin = JTAG_TMS_PIN;
-    GPIO_Config(JTAG_TMS_PORT, &gpioConfig);
+    __NOP();
 }
 
 __STATIC_FORCEINLINE uint32_t PIN_TDI_IN  (void) { return PIN_READ(JTAG_TDI_PORT, JTAG_TDI_PIN) ? 1U : 0U; }
-__STATIC_FORCEINLINE void     PIN_TDI_OUT (uint32_t bit) { if (bit & 1U) PIN_SET(JTAG_TDI_PORT, JTAG_TDI_PIN); else PIN_CLR(JTAG_TDI_PORT, JTAG_TDI_PIN); }
+__STATIC_FORCEINLINE void     PIN_TDI_OUT (uint32_t bit) { JTAG_TDI_PORT->BSC = (bit & 1U) ? JTAG_TDI_PIN : (JTAG_TDI_PIN << 16U); }
 __STATIC_FORCEINLINE uint32_t PIN_TDO_IN  (void) { return PIN_READ(JTAG_TDO_PORT, JTAG_TDO_PIN) ? 1U : 0U; }
 __STATIC_FORCEINLINE uint32_t PIN_nTRST_IN   (void) { return PIN_READ(JTAG_TRST_PORT, JTAG_TRST_PIN) ? 1U : 0U; }
-__STATIC_FORCEINLINE void     PIN_nTRST_OUT  (uint32_t bit) { if (bit & 1U) PIN_SET(JTAG_TRST_PORT, JTAG_TRST_PIN); else PIN_CLR(JTAG_TRST_PORT, JTAG_TRST_PIN); }
+__STATIC_FORCEINLINE void     PIN_nTRST_OUT  (uint32_t bit) { JTAG_TRST_PORT->BSC = (bit & 1U) ? JTAG_TRST_PIN : (JTAG_TRST_PIN << 16U); }
 __STATIC_FORCEINLINE uint32_t PIN_nRESET_IN  (void) { return PIN_READ(JTAG_NRST_PORT, JTAG_NRST_PIN) ? 1U : 0U; }
-__STATIC_FORCEINLINE void     PIN_nRESET_OUT (uint32_t bit) { if (bit & 1U) PIN_SET(JTAG_NRST_PORT, JTAG_NRST_PIN); else PIN_CLR(JTAG_NRST_PORT, JTAG_NRST_PIN); }
+__STATIC_FORCEINLINE void     PIN_nRESET_OUT (uint32_t bit) { JTAG_NRST_PORT->BSC = (bit & 1U) ? JTAG_NRST_PIN : (JTAG_NRST_PIN << 16U); }
 
-__STATIC_INLINE void LED_CONNECTED_OUT (uint32_t bit) { if (bit & 1U) board_led_on(1); else board_led_off(1); }
-__STATIC_INLINE void LED_RUNNING_OUT   (uint32_t bit) { if (bit & 1U) board_led_on(0); else board_led_off(0); }
+static uint8_t g_dap_led_connected = 0U;
+static uint8_t g_dap_led_running = 0U;
+static uint8_t g_dap_led_error = 0U;
+
+__STATIC_INLINE void DAP_LED_UPDATE (void) {
+    if (g_dap_led_connected) {
+        if (g_dap_led_running) {
+            board_led_on(0);  /* running */
+            board_led_off(1); /* idle */
+        } else {
+            board_led_off(0);
+            board_led_on(1);
+        }
+
+        if (g_dap_led_error) {
+            board_led_on(2);
+        } else {
+            board_led_off(2);
+        }
+    } else {
+        board_led_off(0);
+        board_led_off(1);
+        board_led_off(2);
+    }
+}
+
+__STATIC_INLINE void LED_CONNECTED_OUT (uint32_t bit) {
+    g_dap_led_connected = (uint8_t)(bit & 1U);
+
+    if (g_dap_led_connected == 0U) {
+        g_dap_led_running = 0U;
+        g_dap_led_error = 0U;
+    }
+
+    DAP_LED_UPDATE();
+}
+
+__STATIC_INLINE void LED_RUNNING_OUT   (uint32_t bit) {
+    g_dap_led_running = (uint8_t)(bit & 1U);
+    DAP_LED_UPDATE();
+}
 __STATIC_INLINE uint32_t TIMESTAMP_GET (void) { return (0U); }
 
 __STATIC_INLINE void DAP_SETUP (void) {
     board_init();
     board_led_init();
+    g_dap_led_connected = 0U;
+    g_dap_led_running = 0U;
+    g_dap_led_error = 0U;
+    DAP_LED_UPDATE();
     PORT_OFF();
 }
 

@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../blackmagic"
+		},
+		{
+			"path": "../../SDK/APM32E10x_SDK_V1.3.2"
+		},
+		{
+			"path": "../../dfu-util"
+		},
+		{
+			"path": "../../libusb"
+		},
+		{
+			"path": "../../openocd"
+		}
+	],
+	"settings": {}
+}

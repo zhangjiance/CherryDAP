@@ -30,7 +30,7 @@ set(MCU_LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/apm32e103_app.ld)
 # CPU and compiler options
 set(CMAKE_C_FLAGS "-mcpu=cortex-m3 -mthumb -mfloat-abi=soft -Wall -fdata-sections -ffunction-sections")
 set(CMAKE_C_FLAGS_DEBUG "-O0 -g3")
-set(CMAKE_C_FLAGS_RELEASE "-O3")
+set(CMAKE_C_FLAGS_RELEASE "-O3 -flto")
 
 # ASM flags
 set(CMAKE_ASM_FLAGS "-mcpu=cortex-m3 -mthumb -mfloat-abi=soft -x assembler-with-cpp")
@@ -40,6 +40,8 @@ set(CMAKE_EXE_LINKER_FLAGS "-mcpu=cortex-m3 -mthumb -mfloat-abi=soft -T${MCU_LIN
 -Wl,-Map=${PROJECT_NAME}.map,--cref -Wl,--gc-sections \
 -specs=nano.specs -specs=nosys.specs \
 -Wl,--print-memory-usage")
+
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-flto")
 
 # Macro definitions
 add_definitions(
