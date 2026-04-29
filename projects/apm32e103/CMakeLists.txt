@@ -53,9 +53,9 @@ add_definitions(
 # Include directories
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/Inc
-    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS
-    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/Device
-    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/StdPeriphDriver
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Include
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/Device/Geehy/APM32E10x/Include
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/APM32E10x_StdPeriphDriver/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../CherryUSB/common
     ${CMAKE_CURRENT_SOURCE_DIR}/../../CherryUSB/core
     ${CMAKE_CURRENT_SOURCE_DIR}/../../CherryUSB/class/cdc
@@ -69,19 +69,19 @@ include_directories(
 
 # Source files - Device startup and system
 set(DEVICE_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/Device/Source/startup_apm32e10x_hd.S
-    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/Device/Source/system_apm32e10x.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/Device/Geehy/APM32E10x/Source/gcc/startup_apm32e10x_hd.S
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/Device/Geehy/APM32E10x/Source/system_apm32e10x.c
 )
 
-# Source files - StdPeriphDriver (add only needed peripherals)
+# Source files - APM32E10x_StdPeriphDriver (add only needed peripherals)
 file(GLOB STDPERIPH_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/StdPeriphDriver/src/apm32e10x_adc.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/StdPeriphDriver/src/apm32e10x_gpio.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/StdPeriphDriver/src/apm32e10x_rcm.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/StdPeriphDriver/src/apm32e10x_fmc.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/StdPeriphDriver/src/apm32e10x_misc.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/StdPeriphDriver/src/apm32e10x_usart.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/StdPeriphDriver/src/apm32e10x_dma.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/APM32E10x_StdPeriphDriver/src/apm32e10x_adc.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/APM32E10x_StdPeriphDriver/src/apm32e10x_gpio.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/APM32E10x_StdPeriphDriver/src/apm32e10x_rcm.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/APM32E10x_StdPeriphDriver/src/apm32e10x_fmc.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/APM32E10x_StdPeriphDriver/src/apm32e10x_misc.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/APM32E10x_StdPeriphDriver/src/apm32e10x_usart.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/APM32E10x_StdPeriphDriver/src/apm32e10x_dma.c
 )
 
 # CherryUSB sources
