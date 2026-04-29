@@ -55,7 +55,7 @@ static void board_system_clock_init(void)
 
     if (RCM_WaitHSEReady() == SUCCESS) {
         FMC_EnablePrefetchBuffer();
-        FMC_ConfigLatency(FMC_LATENCY_3);
+        FMC_ConfigLatency(FMC_LATENCY_2);
 
         RCM_ConfigAHB(RCM_AHB_DIV_1);
         RCM_ConfigAPB2(RCM_APB_DIV_1);

@@ -26,8 +26,8 @@
 
 /// Processor Clock
 #define CPU_CLOCK               120000000U
-#define IO_PORT_WRITE_CYCLES    2U
-#define DELAY_SLOW_CYCLES       3U
+#define IO_PORT_WRITE_CYCLES    4U
+#define DELAY_SLOW_CYCLES       4U
 #define DELAY_FAST_CYCLES       1U
 
 /// SWD/JTAG Configuration
@@ -87,16 +87,15 @@ __STATIC_INLINE uint8_t DAP_GetTargetDeviceVendorString (char *str) { (void)str;
 #define JTAG_NRST_PORT      GPIOA
 #define JTAG_NRST_PIN       GPIO_PIN_2  /* PA2 - nRST (HW3/4/5) */
 
-// Fast GPIO register access helpers
-__STATIC_FORCEINLINE void GPIO_SET_FAST(GPIO_T *port, uint32_t pin_mask) {
+__STATIC_FORCEINLINE void PIN_SET(GPIO_T *port, uint32_t pin_mask) {
     port->BSC = pin_mask;
 }
 
-__STATIC_FORCEINLINE void GPIO_CLR_FAST(GPIO_T *port, uint32_t pin_mask) {
+__STATIC_FORCEINLINE void PIN_CLR(GPIO_T *port, uint32_t pin_mask) {
     port->BSC = (pin_mask << 16U);
 }
 
-__STATIC_FORCEINLINE uint32_t GPIO_READ_FAST(GPIO_T *port, uint32_t pin_mask) {
+__STATIC_FORCEINLINE uint32_t PIN_READ(GPIO_T *port, uint32_t pin_mask) {
     return (port->IDATA & pin_mask) ? 1U : 0U;
 }
 
@@ -106,11 +105,6 @@ __STATIC_FORCEINLINE uint32_t GPIO_READ_FAST(GPIO_T *port, uint32_t pin_mask) {
 #define SWD_CR_MASK     (0xFU << SWD_CR_SHIFT)
 #define SWD_CR_FLOAT    (0x4U << SWD_CR_SHIFT) /* input floating */
 #define SWD_CR_DRIVE    (0x3U << SWD_CR_SHIFT) /* output push-pull 50MHz */
-
-// GPIO Macros
-#define PIN_SET(port, pin)      GPIO_SET_FAST((port), (pin))
-#define PIN_CLR(port, pin)      GPIO_CLR_FAST((port), (pin))
-#define PIN_READ(port, pin)     GPIO_READ_FAST((port), (pin))
 
 __STATIC_INLINE void PORT_JTAG_SETUP (void) {
     GPIO_Config_T gpioConfig;
@@ -179,24 +173,22 @@ __STATIC_FORCEINLINE void     PIN_SWDIO_TMS_CLR (void) { PIN_CLR(JTAG_TMS_PORT, 
 __STATIC_FORCEINLINE uint32_t PIN_SWDIO_IN      (void) { return PIN_READ(JTAG_TMS_PORT, JTAG_TMS_PIN) ? 1U : 0U; }
 __STATIC_FORCEINLINE void     PIN_SWDIO_OUT     (uint32_t bit) { JTAG_TMS_PORT->BSC = (bit & 1U) ? JTAG_TMS_PIN : (JTAG_TMS_PIN << 16U); }
 
-__STATIC_FORCEINLINE void     PIN_SWDIO_OUT_ENABLE  (void) {
+__STATIC_FORCEINLINE void PIN_SWDIO_OUT_ENABLE(void) {
     uint32_t cr = SWD_CR;
-    cr &= ~SWD_CR_MASK;
-    cr |= SWD_CR_DRIVE;
-    /* native_plus ordering: set direction first, then switch pad to output. */
+    cr &= ~(0xFU << SWD_CR_SHIFT); 
+    cr |= (0x3U << SWD_CR_SHIFT);
     PIN_SET(JTAG_TMS_DIR_PORT, JTAG_TMS_DIR_PIN);
+    __DSB();
     SWD_CR = cr;
-    __NOP();
 }
 
-__STATIC_FORCEINLINE void     PIN_SWDIO_OUT_DISABLE (void) {
+__STATIC_FORCEINLINE void PIN_SWDIO_OUT_DISABLE(void) {
     uint32_t cr = SWD_CR;
-    cr &= ~SWD_CR_MASK;
-    cr |= SWD_CR_FLOAT;
-    /* native_plus ordering: switch pad to input first, then release buffer direction. */
+    cr &= ~(0xFU << SWD_CR_SHIFT);
+    cr |= (0x4U << SWD_CR_SHIFT);
     SWD_CR = cr;
+    __DSB();
     PIN_CLR(JTAG_TMS_DIR_PORT, JTAG_TMS_DIR_PIN);
-    __NOP();
 }
 
 __STATIC_FORCEINLINE uint32_t PIN_TDI_IN  (void) { return PIN_READ(JTAG_TDI_PORT, JTAG_TDI_PIN) ? 1U : 0U; }
