@@ -29,7 +29,7 @@
 #define FUNCTION_SUBSET_LEN                160
 #define DEVICE_INTERFACE_GUIDS_FEATURE_LEN 132
 
-#define USBD_WINUSB_DESC_SET_LEN (WINUSB_DESCRIPTOR_SET_HEADER_SIZE + USBD_WEBUSB_ENABLE * FUNCTION_SUBSET_LEN + USBD_BULK_ENABLE * FUNCTION_SUBSET_LEN + USBD_DFU_RUNTIME_ENABLE * FUNCTION_SUBSET_LEN)
+#define USBD_WINUSB_DESC_SET_LEN (WINUSB_DESCRIPTOR_SET_HEADER_SIZE + USBD_WEBUSB_ENABLE * FUNCTION_SUBSET_LEN + USBD_BULK_ENABLE * FUNCTION_SUBSET_LEN)
 
 #define USBD_NUM_DEV_CAPABILITIES (USBD_WEBUSB_ENABLE + USBD_WINUSB_ENABLE)
 
@@ -55,7 +55,7 @@
 #define DFU_RUNTIME_INTF_NUM (WEBUSB_INTF_NUM + USBD_WEBUSB_ENABLE)
 
 #define WEBUSB_URL_STRINGS                                 \
-    'c', 'h', 'e', 'r', 'r', 'y', 'd', 'a', 'p', '.', 'c', 'h', 'e', 'r', 'r', 'y', '-', 'e', 'm', 'b', 'e', 'd', 'd', 'e', 'd', '.', 'o', 'r', 'g',
+    'g', 'e', 'e', 'k', 'd', 'e', 'b', 'g', 'p', 'r', 'o', 'b', 'e', '.', 'c', 'o', 'm',
 
 __ALIGN_BEGIN const uint8_t USBD_WinUSBDescriptorSetDescriptor[] = {
     WBVAL(WINUSB_DESCRIPTOR_SET_HEADER_SIZE), /* wLength */
@@ -85,7 +85,7 @@ __ALIGN_BEGIN const uint8_t USBD_WinUSBDescriptorSetDescriptor[] = {
     '9', 0, 'C', 0, '7', 0, '7', 0, '-', 0,
     '4', 0, '6', 0, 'F', 0, 'E', 0, '-', 0,
     '9', 0, '3', 0, '3', 0, 'B', 0, '-',
-    0, '3', 0, '1', 0, 'C', 0, 'B', 0, '9', 0, 'C', 0, '5', 0, 'A', 0, 'A', 0, '3', 0, 'B', 0, '9', 0,
+    0, '3', 0, '1', 0, 'C', 0, 'E', 0, '9', 0, 'C', 0, '5', 0, 'A', 0, 'A', 0, '3', 0, 'B', 0, '9', 0,
     '}', 0, 0, 0, 0, 0,
 #endif
 #if USBD_BULK_ENABLE
@@ -110,34 +110,8 @@ __ALIGN_BEGIN const uint8_t USBD_WinUSBDescriptorSetDescriptor[] = {
     'C', 0, 'D', 0, 'B', 0, '3', 0, 'B', 0, '5', 0, 'A', 0, 'D', 0, '-', 0,
     '2', 0, '9', 0, '3', 0, 'B', 0, '-', 0,
     '4', 0, '6', 0, '6', 0, '3', 0, '-', 0,
-    'A', 0, 'A', 0, '3', 0, '6', 0, '-',
-    0, '1', 0, 'A', 0, 'A', 0, 'E', 0, '4', 0, '6', 0, '4', 0, '6', 0, '3', 0, '7', 0, '7', 0, '6', 0,
-    '}', 0, 0, 0, 0, 0,
-#endif
-#if USBD_DFU_RUNTIME_ENABLE
-    WBVAL(WINUSB_FUNCTION_SUBSET_HEADER_SIZE), /* wLength */
-    WBVAL(WINUSB_SUBSET_HEADER_FUNCTION_TYPE), /* wDescriptorType */
-    DFU_RUNTIME_INTF_NUM,                      /* bFirstInterface */
-    0,                                         /* bReserved */
-    WBVAL(FUNCTION_SUBSET_LEN),                /* wSubsetLength */
-    WBVAL(WINUSB_FEATURE_COMPATIBLE_ID_SIZE),  /* wLength */
-    WBVAL(WINUSB_FEATURE_COMPATIBLE_ID_TYPE),  /* wDescriptorType */
-    'W', 'I', 'N', 'U', 'S', 'B', 0, 0,        /* CompatibleId */
-    0, 0, 0, 0, 0, 0, 0, 0,                    /* SubCompatibleId */
-    WBVAL(DEVICE_INTERFACE_GUIDS_FEATURE_LEN), /* wLength */
-    WBVAL(WINUSB_FEATURE_REG_PROPERTY_TYPE),   /* wDescriptorType */
-    WBVAL(WINUSB_PROP_DATA_TYPE_REG_MULTI_SZ), /* wPropertyDataType */
-    WBVAL(42),                                 /* wPropertyNameLength */
-    'D', 0, 'e', 0, 'v', 0, 'i', 0, 'c', 0, 'e', 0,
-    'I', 0, 'n', 0, 't', 0, 'e', 0, 'r', 0, 'f', 0, 'a', 0, 'c', 0, 'e', 0,
-    'G', 0, 'U', 0, 'I', 0, 'D', 0, 's', 0, 0, 0,
-    WBVAL(80), /* wPropertyDataLength */
-    '{', 0,
-    '2', 0, 'A', 0, '2', 0, '0', 0, '3', 0, '6', 0, '0', 0, 'D', 0, '-', 0,
-    'F', 0, 'B', 0, 'D', 0, '1', 0, '-', 0,
-    '4', 0, 'A', 0, 'E', 0, '1', 0, '-', 0,
-    'B', 0, 'B', 0, '7', 0, 'D', 0, '-', 0,
-    '2', 0, '9', 0, '3', 0, 'B', 0, 'D', 0, 'E', 0, '8', 0, 'A', 0, 'F', 0, '5', 0, '4', 0, '8', 0, '9', 0,
+    'A', 0, 'A', 0, '3', 0, '6', 0, '-', 0, 
+    '1', 0, 'A', 0, 'A', 0, 'E', 0, '4', 0, '6', 0, '5', 0, '6', 0, '3', 0, '7', 0, '7', 0, '6', 0,
     '}', 0, 0, 0, 0, 0,
 #endif
 };
@@ -176,7 +150,7 @@ __ALIGN_BEGIN const uint8_t USBD_BinaryObjectStoreDescriptor[] = {
 #endif
 };
 
-#define URL_DESCRIPTOR_LENGTH    (3 + 29)
+#define URL_DESCRIPTOR_LENGTH    (3 + 17)
 
 const uint8_t USBD_WebUSBURLDescriptor[URL_DESCRIPTOR_LENGTH] = {
     URL_DESCRIPTOR_LENGTH,
@@ -221,7 +195,7 @@ const uint8_t USBD_WebUSBURLDescriptor[URL_DESCRIPTOR_LENGTH] = {
 // clang-format on
 
 static const uint8_t device_descriptor[] = {
-    USB_DEVICE_DESCRIPTOR_INIT(USB_2_1, 0xEF, 0x02, 0x01, USBD_VID, USBD_PID, 0x0100, 0x01),
+    USB_DEVICE_DESCRIPTOR_INIT(USB_2_1, 0xEF, 0x02, 0x01, USBD_VID, USBD_PID, 0x0200, 0x01),
 };
 
 static const uint8_t config_descriptor[] = {
@@ -249,8 +223,8 @@ static const uint8_t config_descriptor[] = {
     0x09,                          /* bLength */
     DFU_FUNC_DESC,                 /* bDescriptorType */
     DFU_ATTR_WILL_DETACH | DFU_ATTR_CAN_DNLOAD, /* bmAttributes (0x09) */
-    WBVAL(0xff),                   /* wDetachTimeout (ms) */
-    WBVAL(0x400),        /* wTransferSize */
+    WBVAL(0xff),              /* wDetachTimeout (ms) */
+    WBVAL(0x400),             /* wTransferSize */
     WBVAL(0x011a),            /* bcdDFUVersion */
 #endif
 };
@@ -281,8 +255,8 @@ static const uint8_t other_speed_config_descriptor[] = {
     DFU_FUNC_DESC,                 /* bDescriptorType */
     DFU_ATTR_WILL_DETACH | DFU_ATTR_CAN_DNLOAD, /* bmAttributes (0x09) */
     WBVAL(0xff),                   /* wDetachTimeout (ms) */
-    WBVAL(0x400),        /* wTransferSize */
-    WBVAL(0x011a),            /* bcdDFUVersion */
+    WBVAL(0x400),                  /* wTransferSize */
+    WBVAL(0x011a),                 /* bcdDFUVersion */
 #endif
 };
 
@@ -320,15 +294,15 @@ const uint8_t hid_custom_report_desc[HID_CUSTOM_REPORT_DESC_SIZE] = {
         0xC0 /*     END_COLLECTION	             */
 };
 
-char serial_number_dynamic[36] = "00000000000000000123456789ABCDEF"; // Dynamic serial number
+char serial_number_dynamic[36] = "00000000000000000ABCDEF123456789"; // Dynamic serial number
 
 char *string_descriptors[] = {
     (char[]){ 0x09, 0x04 },             /* Langid */
-    "CherryUSB",                        /* Manufacturer */
-    "CherryUSB CMSIS-DAP",              /* Product */
-    "00000000000000000123456789ABCDEF", /* Serial Number */
-    "CherryUSB WebUSB",
-    "CherryUSB DFU Runtime",
+    "GeekDebugProbe",                        /* Manufacturer */
+    "GeekDebugProbe CMSIS-DAP",              /* Product */
+    "00000000000000000ABCDEF123456789", /* Serial Number */
+    "GeekDebugProbe WebUSB",
+    "GeekDebugProbe DFU Runtime",
 };
 
 static const uint8_t device_quality_descriptor[] = {
