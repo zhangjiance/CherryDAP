@@ -44,7 +44,7 @@
 
 /* Max number of interfaces */
 #ifndef CONFIG_USBDEV_MAX_INTF
-#define CONFIG_USBDEV_MAX_INTF 2
+#define CONFIG_USBDEV_MAX_INTF 4
 #endif
 
 /* ================ USB Device Port Configuration ================ */

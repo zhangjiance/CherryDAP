@@ -18,7 +18,7 @@ extern "C" {
 
 /* USB Device VID/PID - Freescale OSBDM compatible IDs */
 #define USBD_VID                    0x15A2
-#define USBD_PID                    0x0042
+#define USBD_PID                    0x005E
 #define USBD_MAX_POWER              100
 
 /* OSBDM USB Endpoint addresses */

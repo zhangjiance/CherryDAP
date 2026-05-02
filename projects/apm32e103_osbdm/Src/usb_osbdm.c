@@ -9,6 +9,7 @@
 #include "usb_osbdm.h"
 #include "board.h"
 #include "usbd_core.h"
+#include "usbd_cdc.h"
 #include "usb_dfu.h"
 #include "cmd_processing.h"
 #include <string.h>
@@ -16,14 +17,21 @@
 /* USB Bus ID */
 #define BUSID                       0
 
+/* CDC endpoint allocation (keep distinct from OSBDM endpoints). */
+#define CDC_INT_EP                  0x83
+#define CDC_OUT_EP                  0x03
+#define CDC_IN_EP                   0x84
+
 /* DFU runtime descriptor size: interface + functional descriptor */
 #define DFU_RUNTIME_DESC_SIZE       18
-#define USBD_DFU_RUNTIME_ENABLE     0
+#define USBD_DFU_RUNTIME_ENABLE     1
 
 /* Configuration descriptor size */
-#define CONFIG_DESC_SIZE            (9 + 9 + 7 + 7 + USBD_DFU_RUNTIME_ENABLE * DFU_RUNTIME_DESC_SIZE)
-#define INTERFACE_NUM               (1 + USBD_DFU_RUNTIME_ENABLE)
-#define DFU_RUNTIME_INTF_NUM        1
+#define OSBDM_INTERFACE_DESC_SIZE   (9 + 7 + 7)
+#define CONFIG_DESC_SIZE            (9 + OSBDM_INTERFACE_DESC_SIZE + CDC_ACM_DESCRIPTOR_LEN + USBD_DFU_RUNTIME_ENABLE * DFU_RUNTIME_DESC_SIZE)
+#define INTERFACE_NUM               (1 + 2 + USBD_DFU_RUNTIME_ENABLE)
+#define CDC_CONTROL_INTF_NUM        1
+#define DFU_RUNTIME_INTF_NUM        (CDC_CONTROL_INTF_NUM + 2)
 
 /*==============================================================================
  * USB Buffers
@@ -93,9 +101,19 @@ static const uint8_t config_descriptor_fs[] = {
         0x00
     ),
 
+    /* CDC ACM descriptors (Control IF=1, Data IF=2). */
+    CDC_ACM_DESCRIPTOR_INIT(
+        CDC_CONTROL_INTF_NUM,
+        CDC_INT_EP,
+        CDC_OUT_EP,
+        CDC_IN_EP,
+        OSBDM_EP_MPS_FS,
+        0x00
+    ),
+
 #if USBD_DFU_RUNTIME_ENABLE
     /* DFU Runtime Interface + Functional Descriptor */
-    USB_INTERFACE_DESCRIPTOR_INIT(DFU_RUNTIME_INTF_NUM, 0x00, 0x00, USB_DEVICE_CLASS_APP_SPECIFIC, DFU_SUBCLASS_DFU, DFU_PROTOCOL_RUNTIME, 0x04),
+    USB_INTERFACE_DESCRIPTOR_INIT(DFU_RUNTIME_INTF_NUM, 0x00, 0x00, USB_DEVICE_CLASS_APP_SPECIFIC, DFU_SUBCLASS_DFU, DFU_PROTOCOL_RUNTIME, 0x05),
     0x09,
     DFU_FUNC_DESC,
     DFU_ATTR_WILL_DETACH | DFU_ATTR_CAN_DNLOAD,
@@ -122,6 +140,7 @@ static const char *string_descriptors[] = {
     "ARM",                          /* Manufacturer */
     "OSBDM Debug Port",             /* Product */
     "OSBDM001",                     /* Serial Number */
+    "OSBDM CDC Serial Port",        /* CDC interface string */
     "OSBDM DFU Runtime",            /* DFU Runtime */
 };
 
@@ -337,6 +356,8 @@ static void usbd_event_handler(uint8_t busid, uint8_t event)
  *============================================================================*/
 
 static struct usbd_interface osbdm_interface;
+static struct usbd_interface cdc_acm_control_intf;
+static struct usbd_interface cdc_acm_data_intf;
 
 #if USBD_DFU_RUNTIME_ENABLE
 static struct usbd_interface dfu_runtime_intf;
@@ -351,6 +372,67 @@ static struct usbd_endpoint osbdm_out_ep = {
     .ep_addr = OSBDM_OUT_EP,
     .ep_cb   = osbdm_out_callback
 };
+
+static void cdc_acm_bulk_out(uint8_t busid, uint8_t ep, uint32_t nbytes)
+{
+    (void)busid;
+    (void)ep;
+    (void)nbytes;
+}
+
+static void cdc_acm_bulk_in(uint8_t busid, uint8_t ep, uint32_t nbytes)
+{
+    (void)busid;
+    (void)ep;
+    (void)nbytes;
+}
+
+static struct usbd_endpoint cdc_out_ep = {
+    .ep_addr = CDC_OUT_EP,
+    .ep_cb   = cdc_acm_bulk_out
+};
+
+static struct usbd_endpoint cdc_in_ep = {
+    .ep_addr = CDC_IN_EP,
+    .ep_cb   = cdc_acm_bulk_in
+};
+
+static struct usbd_endpoint cdc_int_ep = {
+    .ep_addr = CDC_INT_EP,
+    .ep_cb   = NULL
+};
+
+void usbd_cdc_acm_set_line_coding(uint8_t busid, uint8_t intf, struct cdc_line_coding *line_coding)
+{
+    (void)busid;
+    (void)intf;
+    (void)line_coding;
+}
+
+void usbd_cdc_acm_get_line_coding(uint8_t busid, uint8_t intf, struct cdc_line_coding *line_coding)
+{
+    (void)busid;
+    (void)intf;
+
+    line_coding->dwDTERate = 115200;
+    line_coding->bDataBits = 8;
+    line_coding->bParityType = 0;
+    line_coding->bCharFormat = 0;
+}
+
+void usbd_cdc_acm_set_dtr(uint8_t busid, uint8_t intf, bool dtr)
+{
+    (void)busid;
+    (void)intf;
+    (void)dtr;
+}
+
+void usbd_cdc_acm_set_rts(uint8_t busid, uint8_t intf, bool rts)
+{
+    (void)busid;
+    (void)intf;
+    (void)rts;
+}
 
 void usb_dc_low_level_init(void)
 {
@@ -395,6 +477,8 @@ void usb_osbdm_init(void)
     
     /* Add interface */
     usbd_add_interface(BUSID, &osbdm_interface);
+    usbd_add_interface(BUSID, usbd_cdc_acm_init_intf(BUSID, &cdc_acm_control_intf));
+    usbd_add_interface(BUSID, usbd_cdc_acm_init_intf(BUSID, &cdc_acm_data_intf));
 
 #if USBD_DFU_RUNTIME_ENABLE
     dfu_runtime_intf.class_interface_handler = dfu_runtime_class_interface_request_handler;
@@ -407,6 +491,9 @@ void usb_osbdm_init(void)
     /* Add endpoints */
     usbd_add_endpoint(BUSID, &osbdm_in_ep);
     usbd_add_endpoint(BUSID, &osbdm_out_ep);
+    usbd_add_endpoint(BUSID, &cdc_out_ep);
+    usbd_add_endpoint(BUSID, &cdc_in_ep);
+    usbd_add_endpoint(BUSID, &cdc_int_ep);
     
     /* Initialize USB device controller
      * For APM32E103: USB base address is USBD_BASE

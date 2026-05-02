@@ -80,6 +80,7 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/../apm32e103/Drivers/APM32E10x_StdPeriphDriver/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../CherryUSB/common
     ${CMAKE_CURRENT_SOURCE_DIR}/../../CherryUSB/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../CherryUSB/class/cdc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../CherryUSB/class/dfu
 )
 
@@ -101,6 +102,7 @@ file(GLOB STDPERIPH_SOURCES
 # CherryUSB sources
 set(CHERRYUSB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/../../CherryUSB/core/usbd_core.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../CherryUSB/class/cdc/usbd_cdc_acm.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../CherryUSB/port/fsdev/usb_dc_fsdev.c
 )
 
