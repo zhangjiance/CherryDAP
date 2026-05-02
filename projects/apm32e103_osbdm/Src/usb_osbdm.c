@@ -33,6 +33,11 @@
 #define CDC_CONTROL_INTF_NUM        1
 #define DFU_RUNTIME_INTF_NUM        (CDC_CONTROL_INTF_NUM + 2)
 
+/* APM32E103 unique ID base is STM32F1-compatible. */
+#ifndef DESIG_UNIQUE_ID_BASE
+#define DESIG_UNIQUE_ID_BASE        0x1FFFF7E8UL
+#endif
+
 /*==============================================================================
  * USB Buffers
  *============================================================================*/
@@ -44,6 +49,31 @@ USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t g_usb_osbdm_rx_buf[USB_OSBDM_BUFS
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t g_usb_osbdm_tx_buf[USB_OSBDM_BUFSIZE];
 
 static volatile uint8_t g_out_ep_needs_rearm = 0;
+static char g_serial_number_dynamic[25] = "000000000000000000000000";
+
+static void osbdm_read_serial_number(void)
+{
+    const volatile uint32_t *const unique_id_p = (uint32_t *)DESIG_UNIQUE_ID_BASE;
+    uint32_t unique_id = 0;
+
+    /* BlackMagic DFU_SERIAL_LENGTH==25 style: 24 hex chars + NUL. */
+    for (size_t i = 0; i < 24U; ++i) {
+        const size_t chunk = i >> 3U;
+        const size_t nibble = i & 7U;
+        const size_t idx = (chunk << 3U) + (7U - nibble);
+
+        if (nibble == 0U) {
+            unique_id = unique_id_p[chunk];
+        }
+
+        g_serial_number_dynamic[idx] = ((unique_id >> (nibble * 4U)) & 0xFU) + '0';
+        if (g_serial_number_dynamic[idx] > '9') {
+            g_serial_number_dynamic[idx] += 7;
+        }
+    }
+
+    g_serial_number_dynamic[24] = '\0';
+}
 
 /*==============================================================================
  * USB Descriptors
@@ -138,10 +168,10 @@ static const uint8_t device_quality_descriptor[] = {
 static const char *string_descriptors[] = {
     "\x09\x04",                     /* LangID: 0x0409 (US English) */
     "ARM",                          /* Manufacturer */
-    "OSBDM Debug Port",             /* Product */
-    "OSBDM001",                     /* Serial Number */
+    "GeekDebugProbe OSBDM",             /* Product */
+    "GeekDebug OSDBM",                     /* Serial Number */
     "OSBDM CDC Serial Port",        /* CDC interface string */
-    "OSBDM DFU Runtime",            /* DFU Runtime */
+    "GeekDebug DFU Runtime",            /* DFU Runtime */
 };
 
 #if USBD_DFU_RUNTIME_ENABLE
@@ -261,6 +291,10 @@ static const uint8_t *other_speed_config_descriptor_callback(uint8_t speed)
 static const char *string_descriptor_callback(uint8_t speed, uint8_t index)
 {
     (void)speed;
+
+    if (index == 3U) {
+        return g_serial_number_dynamic;
+    }
     
     if (index >= (sizeof(string_descriptors) / sizeof(char *))) {
         return NULL;
@@ -472,6 +506,8 @@ void usb_dc_low_level_deinit(void)
  */
 void usb_osbdm_init(void)
 {
+    osbdm_read_serial_number();
+
     /* Register USB descriptor */
     usbd_desc_register(BUSID, &osbdm_descriptor);
     

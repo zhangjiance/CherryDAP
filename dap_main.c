@@ -54,6 +54,11 @@
 
 #define DFU_RUNTIME_INTF_NUM (WEBUSB_INTF_NUM + USBD_WEBUSB_ENABLE)
 
+/* APM32E103 unique ID base is STM32F1-compatible. */
+#ifndef DESIG_UNIQUE_ID_BASE
+#define DESIG_UNIQUE_ID_BASE 0x1FFFF7E8UL
+#endif
+
 __ALIGN_BEGIN const uint8_t USBD_WinUSBDescriptorSetDescriptor[] = {
     WBVAL(WINUSB_DESCRIPTOR_SET_HEADER_SIZE), /* wLength */
     WBVAL(WINUSB_SET_HEADER_DESCRIPTOR_TYPE), /* wDescriptorType */
@@ -295,7 +300,31 @@ const uint8_t hid_custom_report_desc[HID_CUSTOM_REPORT_DESC_SIZE] = {
         0xC0 /*     END_COLLECTION	             */
 };
 
-char serial_number_dynamic[36] = "00000000000000000ABCDEF123456789"; // Dynamic serial number
+char serial_number_dynamic[36] = "000000000000000000000000"; // 24-hex UID serial
+
+static void chry_dap_read_serial_number(void)
+{
+    const volatile uint32_t *const unique_id_p = (uint32_t *)DESIG_UNIQUE_ID_BASE;
+    uint32_t unique_id = 0;
+
+    /* Same layout as BlackMagic DFU_SERIAL_LENGTH==25 path: 24 hex chars + NUL. */
+    for (size_t i = 0; i < 24U; ++i) {
+        const size_t chunk = i >> 3U;
+        const size_t nibble = i & 7U;
+        const size_t idx = (chunk << 3U) + (7U - nibble);
+
+        if (nibble == 0U) {
+            unique_id = unique_id_p[chunk];
+        }
+
+        serial_number_dynamic[idx] = ((unique_id >> (nibble * 4U)) & 0xFU) + '0';
+        if (serial_number_dynamic[idx] > '9') {
+            serial_number_dynamic[idx] += 7;
+        }
+    }
+
+    serial_number_dynamic[24] = '\0';
+}
 
 char *string_descriptors[] = {
     (char[]){ 0x09, 0x04 },             /* Langid */
@@ -303,7 +332,7 @@ char *string_descriptors[] = {
     "GeekDebugProbe CMSIS-DAP",              /* Product */
     "00000000000000000ABCDEF123456789", /* Serial Number */
     "GeekDebugProbe WebUSB",
-    "GeekDebugProbe DFU Runtime",
+    "GeekDebug DFU Runtime",
 };
 
 static const uint8_t device_quality_descriptor[] = {
@@ -649,6 +678,8 @@ void chry_dap_init(uint8_t busid, uint32_t reg_base)
 {
     chry_ringbuffer_init(&g_uartrx, uartrx_ringbuffer, CONFIG_UARTRX_RINGBUF_SIZE);
     chry_ringbuffer_init(&g_usbrx, usbrx_ringbuffer, CONFIG_USBRX_RINGBUF_SIZE);
+
+    chry_dap_read_serial_number();
 
     DAP_Setup();
 
