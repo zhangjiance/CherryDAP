@@ -148,11 +148,9 @@ __ALIGN_BEGIN const uint8_t USBD_BinaryObjectStoreDescriptor[] = {
 };
 
 #define WEBUSB_URL_STRINGS                                 \
-    'z', 'h', 'a', 'n', 'g', 'j', 'i', 'a', 'n', 'c', 'e', '.', \
-    'g', 'i', 't', 'h', 'u', 'b', '.', 'i', 'o', '/',      \
-    'g', 'e', 'e', 'k', 'd', 'e', 'b', 'u', 'g', 'p', 'r', 'o', 'b', 'e', '-', 'w', 'e', 'b', 'u', 'i', '/'
+    'g', 'e', 'e', 'k', 'd', 'e', 'b', 'u', 'g', '.', 'c', 'n',
 
-#define URL_STRING_LENGTH        44
+#define URL_STRING_LENGTH        12
 #define URL_DESCRIPTOR_LENGTH    (3 + URL_STRING_LENGTH)  // = 47 bytes
 
 const uint8_t USBD_WebUSBURLDescriptor[URL_DESCRIPTOR_LENGTH] = {
