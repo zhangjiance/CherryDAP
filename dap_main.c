@@ -54,9 +54,6 @@
 
 #define DFU_RUNTIME_INTF_NUM (WEBUSB_INTF_NUM + USBD_WEBUSB_ENABLE)
 
-#define WEBUSB_URL_STRINGS                                 \
-    'g', 'e', 'e', 'k', 'd', 'e', 'b', 'g', 'p', 'r', 'o', 'b', 'e', '.', 'c', 'o', 'm',
-
 __ALIGN_BEGIN const uint8_t USBD_WinUSBDescriptorSetDescriptor[] = {
     WBVAL(WINUSB_DESCRIPTOR_SET_HEADER_SIZE), /* wLength */
     WBVAL(WINUSB_SET_HEADER_DESCRIPTOR_TYPE), /* wDescriptorType */
@@ -150,7 +147,13 @@ __ALIGN_BEGIN const uint8_t USBD_BinaryObjectStoreDescriptor[] = {
 #endif
 };
 
-#define URL_DESCRIPTOR_LENGTH    (3 + 17)
+#define WEBUSB_URL_STRINGS                                 \
+    'z', 'h', 'a', 'n', 'g', 'j', 'i', 'a', 'n', 'c', 'e', '.', \
+    'g', 'i', 't', 'h', 'u', 'b', '.', 'i', 'o', '/',      \
+    'g', 'e', 'e', 'k', 'd', 'e', 'b', 'u', 'g', 'p', 'r', 'o', 'b', 'e', '-', 'w', 'e', 'b', 'u', 'i', '/'
+
+#define URL_STRING_LENGTH        44
+#define URL_DESCRIPTOR_LENGTH    (3 + URL_STRING_LENGTH)  // = 47 bytes
 
 const uint8_t USBD_WebUSBURLDescriptor[URL_DESCRIPTOR_LENGTH] = {
     URL_DESCRIPTOR_LENGTH,
