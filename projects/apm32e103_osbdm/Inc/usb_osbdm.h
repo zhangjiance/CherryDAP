@@ -64,6 +64,11 @@ int32_t usb_osbdm_send(uint8_t *data, uint32_t len);
 int32_t usb_osbdm_ep_in_send(uint8_t *data, uint32_t len);
 
 /**
+ * @brief Re-arm OSBDM OUT endpoint to receive next host command
+ */
+void usb_osbdm_rearm_out(void);
+
+/**
  * @brief Poll USB runtime tasks (DFU runtime detach handling)
  */
 void usb_osbdm_poll(void);

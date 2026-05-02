@@ -35,6 +35,8 @@ USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t g_usb_osbdm_rx_buf[USB_OSBDM_BUFS
 /* OSBDM transmit buffer - aligned for USB DMA */
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t g_usb_osbdm_tx_buf[USB_OSBDM_BUFSIZE];
 
+static volatile uint8_t g_out_ep_needs_rearm = 0;
+
 /*==============================================================================
  * USB Descriptors
  *============================================================================*/
@@ -265,10 +267,9 @@ static const struct usb_descriptor osbdm_descriptor = {
  */
 static void osbdm_in_callback(uint8_t busid, uint8_t ep, uint32_t nbytes)
 {
-    /* Send zero-length packet if needed (when nbytes is multiple of MPS) */
-    if ((nbytes % usbd_get_ep_mps(busid, ep)) == 0 && nbytes) {
-        usbd_ep_start_write(busid, ep, NULL, 0);
-    }
+    (void)busid;
+    (void)ep;
+    (void)nbytes;
 }
 
 /**
@@ -276,13 +277,17 @@ static void osbdm_in_callback(uint8_t busid, uint8_t ep, uint32_t nbytes)
  */
 static void osbdm_out_callback(uint8_t busid, uint8_t ep, uint32_t nbytes)
 {
-    (void)nbytes;
-    
-    /* Set command pending flag - first byte is command code */
+    (void)busid;
+    (void)ep;
+
+    if (nbytes == 0U) {
+        g_out_ep_needs_rearm = 1U;
+        return;
+    }
+
+    /* Mark command pending; main loop will process before endpoint is re-armed. */
     debug_cmd_pending = g_usb_osbdm_rx_buf[0];
-    
-    /* Re-arm OUT endpoint for next command */
-    usbd_ep_start_read(busid, ep, g_usb_osbdm_rx_buf, sizeof(g_usb_osbdm_rx_buf));
+    g_out_ep_needs_rearm = 1U;
 }
 
 /*==============================================================================
@@ -312,6 +317,7 @@ static void usbd_event_handler(uint8_t busid, uint8_t event)
             
         case USBD_EVENT_CONFIGURED:
             /* USB configured - start receiving commands */
+            g_out_ep_needs_rearm = 0U;
             usbd_ep_start_read(busid, OSBDM_OUT_EP, g_usb_osbdm_rx_buf, sizeof(g_usb_osbdm_rx_buf));
             break;
             
@@ -423,6 +429,16 @@ int32_t usb_osbdm_send(uint8_t *data, uint32_t len)
 int32_t usb_osbdm_ep_in_send(uint8_t *data, uint32_t len)
 {
     return usb_osbdm_send(data, len);
+}
+
+void usb_osbdm_rearm_out(void)
+{
+    if (g_out_ep_needs_rearm == 0U) {
+        return;
+    }
+
+    g_out_ep_needs_rearm = 0U;
+    usbd_ep_start_read(BUSID, OSBDM_OUT_EP, g_usb_osbdm_rx_buf, sizeof(g_usb_osbdm_rx_buf));
 }
 
 void usb_osbdm_poll(void)

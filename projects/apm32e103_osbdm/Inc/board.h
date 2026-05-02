@@ -37,6 +37,8 @@ extern "C" {
 #define TCK_SWCLK_PIN       GPIO_PIN_5   /* PA5 (all versions) */
 #define TDO_PIN             GPIO_PIN_6   /* PA6 (all versions) */
 #define NRST_PIN            GPIO_PIN_2   /* PA2 (HW3/4/5), PA9 on HW6+ */
+#define TMS_DIR_PORT        GPIOA
+#define TMS_DIR_PIN         GPIO_PIN_1   /* PA1 - level shifter direction control */
 
 #define TRST_PORT           GPIOC
 #define TRST_PIN            GPIO_PIN_13  /* PC13 (actual hardware) */
@@ -69,22 +71,30 @@ extern "C" {
 #define TPWR_SENSE_PIN      GPIO_PIN_0
 #define TPWR_SENSE_RCC      RCM_APB2_PERIPH_GPIOB
 
+/* JTAG buffer direction control */
+#define TMS_DIR_OUT()       do { TMS_DIR_PORT->BSC = TMS_DIR_PIN; __DSB(); } while (0)
+#define TMS_DIR_IN()        do { TMS_DIR_PORT->BC = TMS_DIR_PIN; __DSB(); } while (0)
+
 /* OSBDM/JTAG compatibility macros expected by legacy driver sources */
 #define TCK_SET()           do { JTAG_PORT->BSC = TCK_SWCLK_PIN; __DSB(); } while (0)
 #define TCK_RESET()         do { JTAG_PORT->BC = TCK_SWCLK_PIN; __DSB(); } while (0)
-#define TMS_SET()           do { JTAG_PORT->BSC = TMS_SWDIO_PIN; __DSB(); } while (0)
-#define TMS_RESET()         do { JTAG_PORT->BC = TMS_SWDIO_PIN; __DSB(); } while (0)
+#define TMS_SET()           do { TMS_DIR_OUT(); JTAG_PORT->BSC = TMS_SWDIO_PIN; __DSB(); } while (0)
+#define TMS_RESET()         do { TMS_DIR_OUT(); JTAG_PORT->BC = TMS_SWDIO_PIN; __DSB(); } while (0)
 #define TDI_SET()           do { JTAG_PORT->BSC = TDI_PIN; __DSB(); } while (0)
 #define TDI_RESET()         do { JTAG_PORT->BC = TDI_PIN; __DSB(); } while (0)
 #define TDO_READ()          ((JTAG_PORT->IDATA & TDO_PIN) ? 1U : 0U)
+#define TDO_GET()           TDO_READ()
 
 #define TRST_SET()          do { TRST_PORT->BSC = TRST_PIN; __DSB(); } while (0)
 #define TRST_RESET()        do { TRST_PORT->BC = TRST_PIN; __DSB(); } while (0)
+#define TRST_ASSERT()       TRST_RESET()
+#define TRST_DEASSERT()     TRST_SET()
 
 #define SRST_SET()          do { JTAG_PORT->BSC = NRST_PIN; __DSB(); } while (0)
 #define SRST_RESET()        do { JTAG_PORT->BC = NRST_PIN; __DSB(); } while (0)
-#define SRST_ASSERT()       SRST_RESET()
-#define SRST_DEASSERT()     SRST_SET()
+/* Match OSBDM eppc expectation from 5301 port: SRST control is inverted by hardware path. */
+#define SRST_ASSERT()       SRST_SET()
+#define SRST_DEASSERT()     SRST_RESET()
 
 #define TCK_HIGH()          TCK_SET()
 #define TCK_LOW()           TCK_RESET()

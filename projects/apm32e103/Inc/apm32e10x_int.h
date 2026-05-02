@@ -24,6 +24,7 @@ void SVC_Handler(void);
 void DebugMon_Handler(void);
 void PendSV_Handler(void);
 void SysTick_Handler(void);
+uint32_t systick_get(void);
 void USBD1_LP_CAN1_RX0_IRQHandler(void);
 void USBDWakeUp_IRQHandler(void);
 void USART1_IRQHandler(void);

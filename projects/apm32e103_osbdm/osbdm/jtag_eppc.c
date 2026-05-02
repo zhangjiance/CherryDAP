@@ -37,6 +37,7 @@
 #include "targetAPI.h"				// target API include file
 #include "board_id.h"				// read the hardware ID if available
 #include "serial_io.h"      // Serial port handling/enable
+#include "util.h"
 
 //---------------------------------------------------------------------------
 // Firmware Info
@@ -343,6 +344,14 @@ void t_set_clock(uint32_t clock)
 {
 }
 
+void delay (void)
+{
+    __NOP();
+    __NOP();
+    __NOP();
+    __NOP();
+}
+
 
 void xchng16(unsigned char bitcount, 
                      uint16_t tdival,
@@ -367,8 +376,10 @@ void xchng16(unsigned char bitcount,
         } else {
             TDI_OUT_RESET();
         }
-        
+
+        delay();
         TCLK_SET();        // TCLK High
+        delay();
         
         tdival >>= 1;      // shift to next output bit
         tmsval >>= 1;      // shift to next output bit
@@ -380,6 +391,7 @@ void xchng16(unsigned char bitcount,
         }
         TCLK_RESET();    // TCLK Low
     }
+    *tdoval = ByteSwap16(*tdoval);
     /* Output buffer control not needed on APM32 */
 }
 
@@ -397,22 +409,22 @@ char *temp_pointer;
 switch (sub_cmd_num)
         {
         case 0xAA:  // Test Case
-          for (i=1;i<=*pInputLength;i++) 
+                                        for (i=1;i<=ByteSwap16(*pInputLength);i++) 
             pOutputBuffer[i-1] = pInputBuffer[i-1] ^ 0xff;
           *pOutputLength = *pInputLength;
           return (0) ; //success
           break;
         case 0xA0:  // Write Block in Cable - Untested
           temp_pointer = (char *) ((((unsigned int ) pInputBuffer[0]) << 8) + pInputBuffer[1]);
-          for (i=1;i<=*pInputLength-2;i++) 
+                                        for (i=1;i<=ByteSwap16(*pInputLength)-2;i++) 
             *temp_pointer++ = pInputBuffer[i+1];
           return (0) ; //success
           break;
         case 0xA1:  // Read Block in Cable - Untested
           temp_pointer = (char *) ((((unsigned int ) pInputBuffer[0]) << 8) + pInputBuffer[1]);
-          for (i=1;i<=*pInputLength-2;i++) 
+                                        for (i=1;i<=ByteSwap16(*pInputLength)-2;i++) 
             pOutputBuffer[i-1] = *temp_pointer++;
-          *pOutputLength = *pInputLength-2;
+                                        *pOutputLength = ByteSwap16(ByteSwap16(*pInputLength)-2);
           return (0) ; //success
           break;
         case 0x00: // Get value of the TDO line
@@ -422,7 +434,7 @@ switch (sub_cmd_num)
              else
              pOutputBuffer[0] = 0x00;
           pOutputBuffer[1] = pOutputBuffer[0];
-          *pOutputLength=2;
+             *pOutputLength=ByteSwap16(2);
           return (0) ; //success
           break;
         case 0x01: // Set values directly on JTAG Port (1)
@@ -463,14 +475,14 @@ switch (sub_cmd_num)
                    // 5 Bytes define one 1-16 bit exchange (non compressed)
                    // 3 OR 1 Bytes define on compressed 1-16 bit exchange
 
-          num_swaps = *((uint16_t*) pInputBuffer);
+             num_swaps = ByteSwap16(*((uint16_t*) pInputBuffer));
           pInputBuffer += 2;
           for (i = 0; i < num_swaps; i++) {
              tempnum = *((uint8_t*) (pInputBuffer));
              if (tempnum < 17) {
                 xchng16(tempnum,
-                     *((uint16_t*) (pInputBuffer + 1)), // tdi
-                     *((uint16_t*) (pInputBuffer + 3)), // tms
+                            ByteSwap16(*((uint16_t*) (pInputBuffer + 1))), // tdi
+                            ByteSwap16(*((uint16_t*) (pInputBuffer + 3))), // tms
                      (uint16_t*) (pOutputBuffer + i * 2)); // tdo
              pInputBuffer += 5;
              } else {
@@ -482,7 +494,7 @@ switch (sub_cmd_num)
                 pInputBuffer += 1;
                 } else {
                 xchng16(tms_only_transaction_compression_array_bitsval[tempnum - tms_only_transaction_compression_start],
-                     *((uint16_t*) (pInputBuffer + 1)), // tdi
+                     ByteSwap16(*((uint16_t*) (pInputBuffer + 1))), // tdi
                      tms_only_transaction_compression_array_tmsval[tempnum - tms_only_transaction_compression_start],
                      (uint16_t*) (pOutputBuffer + i * 2)); // tdo
                 pInputBuffer += 3;
@@ -491,7 +503,7 @@ switch (sub_cmd_num)
              }
                      
           }
-          *pOutputLength = num_swaps * 2;
+          *pOutputLength = ByteSwap16(num_swaps * 2);
           return (0) ; //success
           break;
 
@@ -507,9 +519,9 @@ switch (sub_cmd_num)
           index_num = *((uint8_t*) pInputBuffer); // index into array 0 or 8
           for (i = 0; i < 8; i++) {
               tms_tdi_transaction_compression_array_tdival[i + index_num] = 
-                                                           *((uint16_t*) (pInputBuffer + 1 + i * 5)); // tdi
+                                                           ByteSwap16(*((uint16_t*) (pInputBuffer + 1 + i * 5))); // tdi
               tms_tdi_transaction_compression_array_tmsval[i + index_num] = 
-                                                           *((uint16_t*) (pInputBuffer + 3 + i * 5)); // tms
+                                                           ByteSwap16(*((uint16_t*) (pInputBuffer + 3 + i * 5))); // tms
               tms_tdi_transaction_compression_array_bitsval[i + index_num] = 
                                                            *((uint8_t*) (pInputBuffer + 5 + i * 5)); // bits
                      
@@ -528,7 +540,7 @@ switch (sub_cmd_num)
           index_num = *((uint8_t*) pInputBuffer); // index into array 0 or 8
           for (i = 0; i < 8; i++) {
               tms_only_transaction_compression_array_tmsval[i + index_num] = 
-                                                           *((uint16_t*) (pInputBuffer + 1 + i * 3)); // tms
+                                                           ByteSwap16(*((uint16_t*) (pInputBuffer + 1 + i * 3))); // tms
               tms_only_transaction_compression_array_bitsval[i + index_num] = 
                                                            *((uint8_t*) (pInputBuffer + 3 + i * 3)); // bits
                      

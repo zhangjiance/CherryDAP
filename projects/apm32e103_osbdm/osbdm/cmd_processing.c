@@ -85,6 +85,7 @@ void debug_command_send_return (uint8_t rval, uint8_t count)
     g_usb_osbdm_tx_buf[0] = rval;
     g_usb_osbdm_tx_buf[1] = count;
     usb_osbdm_ep_in_send(&g_usb_osbdm_tx_buf[0], count);
+    usb_osbdm_rearm_out();
 }
 
 /*------------------------------------------------------------------------------------

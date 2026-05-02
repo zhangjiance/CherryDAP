@@ -13,6 +13,41 @@
 static volatile uint8_t g_target_power_enabled = 0;
 static volatile uint8_t g_target_voltage_adc_ready = 0;
 
+static void board_jtag_gpio_init(void)
+{
+    GPIO_Config_T gpioConfig;
+
+    RCM_EnableAPB2PeriphClock(JTAG_RCC | RCM_APB2_PERIPH_GPIOC | RCM_APB2_PERIPH_AFIO);
+
+    /* JTAG outputs: TDI/TMS/TCK push-pull. */
+    gpioConfig.mode = GPIO_MODE_OUT_PP;
+    gpioConfig.speed = GPIO_SPEED_50MHz;
+    gpioConfig.pin = TDI_PIN | TMS_SWDIO_PIN | TCK_SWCLK_PIN;
+    GPIO_Config(JTAG_PORT, &gpioConfig);
+    GPIO_ResetBit(JTAG_PORT, TDI_PIN | TMS_SWDIO_PIN | TCK_SWCLK_PIN);
+
+    /* TMS direction control for external level-shifter buffer. */
+    gpioConfig.pin = TMS_DIR_PIN;
+    GPIO_Config(TMS_DIR_PORT, &gpioConfig);
+    GPIO_SetBit(TMS_DIR_PORT, TMS_DIR_PIN);
+
+    /* TDO input floating. */
+    gpioConfig.mode = GPIO_MODE_IN_FLOATING;
+    gpioConfig.pin = TDO_PIN;
+    GPIO_Config(JTAG_PORT, &gpioConfig);
+
+    /* TRST/SRST as open-drain outputs, deasserted high. */
+    gpioConfig.mode = GPIO_MODE_OUT_OD;
+    gpioConfig.speed = GPIO_SPEED_50MHz;
+    gpioConfig.pin = TRST_PIN;
+    GPIO_Config(TRST_PORT, &gpioConfig);
+    GPIO_SetBit(TRST_PORT, TRST_PIN);
+
+    gpioConfig.pin = NRST_PIN;
+    GPIO_Config(JTAG_PORT, &gpioConfig);
+    GPIO_ResetBit(JTAG_PORT, NRST_PIN);
+}
+
 static void board_target_voltage_init(void)
 {
     GPIO_Config_T gpioConfig;
@@ -115,6 +150,7 @@ void board_init(void)
     RCM_EnableAPB1PeriphClock(RCM_APB1_PERIPH_USB);
     RCM_EnableAHBPeriphClock(RCM_AHB_PERIPH_DMA1);
 
+    board_jtag_gpio_init();
     board_target_power_init();
     board_target_voltage_init();
 }

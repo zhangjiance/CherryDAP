@@ -8,6 +8,8 @@
 
 #include "apm32e10x_int.h"
 
+static volatile uint32_t g_systick_counter = 0;
+
 extern void USBD_IRQHandler(uint8_t busid);
 extern void apm32_usb2uart_usart_isr(void);
 extern void apm32_usb2uart_dma_tx_isr(void);
@@ -86,6 +88,12 @@ void PendSV_Handler(void)
  */
 void SysTick_Handler(void)
 {
+    g_systick_counter++;
+}
+
+uint32_t systick_get(void)
+{
+    return g_systick_counter;
 }
 
 void USBD1_LP_CAN1_RX0_IRQHandler(void)
