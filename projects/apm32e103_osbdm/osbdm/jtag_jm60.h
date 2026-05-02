@@ -21,8 +21,8 @@
 #ifndef _JTAG_JM60_H_
 #define _JTAG_JM60_H_
 
-/* Use board-specific GPIO definitions from board_osbdm.h */
-#include "board_osbdm.h"
+/* Use board-specific GPIO definitions from board.h */
+#include "board.h"
 
 /*
  * Legacy JM60 drivers directly read/write port registers (PTED/PTBD/...).
@@ -73,7 +73,7 @@ extern volatile uint8_t osbdm_dummy_gpio_reg;
  * GPIO Signal Mappings - Map JM60 signals to APM32E103 GPIO macros
  *============================================================================*/
 
-/* JTAG Control Signals - use board_osbdm.h macros directly, no redefinition needed */
+/* JTAG Control Signals - use board.h macros directly, no redefinition needed */
 
 /* Other JM60 signals - not used in our implementation, define as dummy */
 #define VSW_EN			        0
@@ -165,7 +165,7 @@ extern volatile uint8_t osbdm_dummy_gpio_reg;
 #define	TMS_LOW_VAL		0
 
 /*==============================================================================
- * JTAG Signal Macros - All macros are provided by board_osbdm.h
+ * JTAG Signal Macros - All macros are provided by board.h
  * No redefinition needed here. The following macros are available:
  * 
  * - TMS control: TMS_SET(), TMS_RESET(), TMS_HIGH(), TMS_LOW()

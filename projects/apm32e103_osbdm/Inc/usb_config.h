@@ -59,8 +59,12 @@
 
 /* USB endpoint buffer size */
 #ifndef CONFIG_USBDEV_FSDEV_PMA_ACCESS
-#define CONFIG_USBDEV_FSDEV_PMA_ACCESS 1
+#define CONFIG_USBDEV_FSDEV_PMA_ACCESS 2
 #endif
+
+/* Rename USBD_BASE macro to avoid conflict and match CherryDAP setup */
+#undef USBD_BASE
+#define USB_BASE_ADDR (0x40005C00UL)
 
 /* ================ Memory Configuration ================ */
 

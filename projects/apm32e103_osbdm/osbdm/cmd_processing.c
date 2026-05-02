@@ -34,7 +34,7 @@
 
 #include "cmd_processing.h" // command processing structures
 
-#include "board_osbdm.h"
+#include "board.h"
 #include "commands.h" // BDM commands header file
 #include "jtag_eppc.h"
 #include "targetAPI.h" // target API include file

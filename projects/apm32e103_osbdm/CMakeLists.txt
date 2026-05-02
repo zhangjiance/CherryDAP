@@ -60,6 +60,7 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/../apm32e103/Drivers/APM32E10x_StdPeriphDriver/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/../../CherryUSB/common
     ${CMAKE_CURRENT_SOURCE_DIR}/../../CherryUSB/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../CherryUSB/class/dfu
 )
 
 # Source files - Device startup and system
@@ -135,7 +136,8 @@ set(OSBDM_BDM_SOURCES
 # Application sources
 set(APP_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Src/main.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Src/board_osbdm.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Src/apm32e10x_int.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Src/board.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Src/usb_osbdm.c
 )
 

@@ -8,9 +8,9 @@
 #define __MCU_H
 
 #include <stdint.h>
-#include "board_osbdm.h"
+#include "board.h"
 
-/* MCU initialization functions - implemented in board_osbdm.c */
+/* MCU initialization functions - implemented in board.c */
 /* These are stub declarations for compatibility */
 
 #endif /* __MCU_H */

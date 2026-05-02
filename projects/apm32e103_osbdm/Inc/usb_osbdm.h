@@ -16,9 +16,9 @@ extern "C" {
 #include "usbd_core.h"
 #include <stdint.h>
 
-/* USB Device VID/PID - Using ARM CMSIS-DAP IDs */
-#define USBD_VID                    0x0D28
-#define USBD_PID                    0x0204
+/* USB Device VID/PID - Freescale OSBDM compatible IDs */
+#define USBD_VID                    0x15A2
+#define USBD_PID                    0x0042
 #define USBD_MAX_POWER              100
 
 /* OSBDM USB Endpoint addresses */
@@ -62,6 +62,11 @@ int32_t usb_osbdm_send(uint8_t *data, uint32_t len);
  * @return 0 on success, negative on error
  */
 int32_t usb_osbdm_ep_in_send(uint8_t *data, uint32_t len);
+
+/**
+ * @brief Poll USB runtime tasks (DFU runtime detach handling)
+ */
+void usb_osbdm_poll(void);
 
 #ifdef __cplusplus
 }

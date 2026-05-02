@@ -12,13 +12,13 @@
 
 /* Include APM32 headers instead of JM60 headers */
 #include "apm32e10x.h"
-#include "board_osbdm.h"
+#include "board.h"
 
 /* JM60 to APM32 compatibility types - do not redefine if typedef.h is included */
 
 /* GPIO register compatibility - map to our macros */
 /* These are defined as dummy variables to satisfy old code that directly accesses them */
-/* The actual GPIO control is done through our macros in board_osbdm.h */
+/* The actual GPIO control is done through our macros in board.h */
 
 /* Note: The JM60 code uses direct register access like:
  *   PTBD |= 0x04;    // Set bit

@@ -7,17 +7,101 @@
  */
 
 #include "apm32e10x.h"
-#include "apm32e10x_fmc.h"
-#include "apm32e10x_misc.h"
-#include "board_osbdm.h"
-#include "usb_osbdm.h"
-#include "board_id.h"
+#include "board.h"
 #include "cmd_processing.h"
-#include "targetAPI.h"
+#include "usb_osbdm.h"
 #include <stdio.h>
 
-/* Target driver init is implemented by the selected OSBDM driver. */
-void t_debug_init(void);
+typedef struct {
+    uint32_t magic;
+    uint32_t handler_id;
+    uint32_t stacked_r0;
+    uint32_t stacked_r1;
+    uint32_t stacked_r2;
+    uint32_t stacked_r3;
+    uint32_t stacked_r12;
+    uint32_t stacked_lr;
+    uint32_t stacked_pc;
+    uint32_t stacked_xpsr;
+    uint32_t cfsr;
+    uint32_t hfsr;
+    uint32_t dfsr;
+    uint32_t afsr;
+    uint32_t mmfar;
+    uint32_t bfar;
+} fault_snapshot_t;
+
+volatile fault_snapshot_t g_fault_snapshot;
+
+__attribute__((used, noinline)) void fault_capture_and_halt(uint32_t *stacked_regs, uint32_t handler_id)
+{
+    g_fault_snapshot.magic = 0x46414C54U; /* "FALT" */
+    g_fault_snapshot.handler_id = handler_id;
+    g_fault_snapshot.stacked_r0 = stacked_regs[0];
+    g_fault_snapshot.stacked_r1 = stacked_regs[1];
+    g_fault_snapshot.stacked_r2 = stacked_regs[2];
+    g_fault_snapshot.stacked_r3 = stacked_regs[3];
+    g_fault_snapshot.stacked_r12 = stacked_regs[4];
+    g_fault_snapshot.stacked_lr = stacked_regs[5];
+    g_fault_snapshot.stacked_pc = stacked_regs[6];
+    g_fault_snapshot.stacked_xpsr = stacked_regs[7];
+    g_fault_snapshot.cfsr = SCB->CFSR;
+    g_fault_snapshot.hfsr = SCB->HFSR;
+    g_fault_snapshot.dfsr = SCB->DFSR;
+    g_fault_snapshot.afsr = SCB->AFSR;
+    g_fault_snapshot.mmfar = SCB->MMFAR;
+    g_fault_snapshot.bfar = SCB->BFAR;
+
+    __DSB();
+    __BKPT(0);
+    while (1) {
+        board_led_on(2);
+    }
+}
+
+__attribute__((naked)) void HardFault_Handler(void)
+{
+    __asm volatile(
+        "tst lr, #4\n"
+        "ite eq\n"
+        "mrseq r0, msp\n"
+        "mrsne r0, psp\n"
+        "mov r1, #1\n"
+        "b fault_capture_and_halt\n");
+}
+
+__attribute__((naked)) void MemManage_Handler(void)
+{
+    __asm volatile(
+        "tst lr, #4\n"
+        "ite eq\n"
+        "mrseq r0, msp\n"
+        "mrsne r0, psp\n"
+        "mov r1, #2\n"
+        "b fault_capture_and_halt\n");
+}
+
+__attribute__((naked)) void BusFault_Handler(void)
+{
+    __asm volatile(
+        "tst lr, #4\n"
+        "ite eq\n"
+        "mrseq r0, msp\n"
+        "mrsne r0, psp\n"
+        "mov r1, #3\n"
+        "b fault_capture_and_halt\n");
+}
+
+__attribute__((naked)) void UsageFault_Handler(void)
+{
+    __asm volatile(
+        "tst lr, #4\n"
+        "ite eq\n"
+        "mrseq r0, msp\n"
+        "mrsne r0, psp\n"
+        "mov r1, #4\n"
+        "b fault_capture_and_halt\n");
+}
 
 /* System tick counter */
 static volatile uint32_t systick_counter = 0;
@@ -28,60 +112,6 @@ static volatile uint16_t target_voltage_mv = 0;
 /* Activity LED blink state */
 static volatile uint32_t led_blink_timer = 0;
 static volatile uint8_t led_blink_state = 0;
-
-/**
- * @brief System clock initialization
- */
-static void system_clock_init(void)
-{
-    RCM_Reset();
-    RCM_ConfigHSE(RCM_HSE_OPEN);
-
-    if (RCM_WaitHSEReady() == SUCCESS) {
-        FMC_EnablePrefetchBuffer();
-        FMC_ConfigLatency(FMC_LATENCY_2);
-
-        RCM_ConfigAHB(RCM_AHB_DIV_1);
-        RCM_ConfigAPB2(RCM_APB_DIV_1);
-        RCM_ConfigAPB1(RCM_APB_DIV_2);
-
-        /* HSE = 8MHz, PLL x15 => SYSCLK = 120MHz */
-        RCM_ConfigPLL(RCM_PLLSEL_HSE, RCM_PLLMF_15);
-        RCM_EnablePLL();
-        while (RCM_ReadStatusFlag(RCM_FLAG_PLLRDY) == RESET);
-
-        RCM_ConfigSYSCLK(RCM_SYSCLK_SEL_PLL);
-        while (RCM_ReadSYSCLKSource() != RCM_SYSCLK_SEL_PLL);
-
-        /* USB clock = PLL / 2.5 = 120MHz / 2.5 = 48MHz */
-        RCM_ConfigUSBCLK(RCM_USB_DIV_2_5);
-
-        SystemCoreClockUpdate();
-        RCM_EnableCSS();
-    }
-}
-
-/**
- * @brief Board initialization
- */
-static void board_init(void)
-{
-    /* Set vector table offset for bootloader compatibility */
-    NVIC_ConfigVectorTable(NVIC_VECT_TAB_FLASH, 0x2000);  /* 8KB bootloader offset */
-    
-    /* Initialize system clock */
-    system_clock_init();
-    
-    /* Enable peripheral clocks */
-    RCM_EnableAPB2PeriphClock(RCM_APB2_PERIPH_AFIO |
-                              RCM_APB2_PERIPH_GPIOA |
-                              RCM_APB2_PERIPH_GPIOB |
-                              RCM_APB2_PERIPH_GPIOC);
-    RCM_EnableAPB1PeriphClock(RCM_APB1_PERIPH_USB);
-    
-    /* Configure SysTick for 1ms interrupts */
-    SysTick_Config(SystemCoreClock / 1000);
-}
 
 /**
  * @brief SysTick interrupt handler
@@ -96,6 +126,14 @@ void SysTick_Handler(void)
     }
 }
 
+void WWDT_IRQHandler(void)
+{
+    /* Defensive: clear WWDT early wakeup flag and keep IRQ masked in app mode. */
+    WWDT->STS_B.EWIFLG = RESET;
+    NVIC_DisableIRQ(WWDT_IRQn);
+    NVIC_ClearPendingIRQ(WWDT_IRQn);
+}
+
 /**
  * @brief Get system tick count in milliseconds
  */
@@ -103,110 +141,57 @@ uint32_t systick_get(void)
 {
     return systick_counter;
 }
-
 /**
- * @brief Process LED error indication
- * 
- * Red LED indicates error conditions:
- * - Target voltage too low (< 1.0V)
- * - Reset line mismatch (output asserted but input not responding)
- */
-static void led_error_process(void)
-{
-    /* Read target voltage periodically */
-    static uint32_t last_voltage_check = 0;
-    if ((systick_counter - last_voltage_check) >= 100) {
-        target_voltage_mv = board_target_voltage_read();
-        last_voltage_check = systick_counter;
-    }
-    
-    /* Check for error conditions */
-    if (target_voltage_mv < 1000) {
-        /* Target voltage too low */
-        LED_RED_ON();
-    } else {
-        LED_RED_OFF();
-    }
-}
-
-/**
- * @brief Process LED status indication
- * 
- * Green LED blinks briefly when commands are executed
- */
-static void led_status_process(void)
-{
-    switch (led_blink_state) {
-        case 0:  /* Idle - LED on */
-            if (debug_cmd_pending) {
-                LED_GREEN_OFF();
-                led_blink_timer = 50;  /* 50ms off */
-                led_blink_state = 1;
-            }
-            break;
-            
-        case 1:  /* Command active - LED off */
-            if (led_blink_timer == 0) {
-                LED_GREEN_ON();
-                led_blink_timer = 10;  /* 10ms on */
-                led_blink_state = 2;
-            }
-            break;
-            
-        case 2:  /* Brief on pulse */
-            if (led_blink_timer == 0) {
-                led_blink_state = 0;
-            }
-            break;
-    }
-}
-
-/**
-
  * @brief Main application entry point
  */
 int main(void)
 {
+    uint32_t last_boot_req_sample_ms = 0U;
+    uint8_t boot_req_low_samples = 0U;
+
     /* Initialize board hardware */
     board_init();
-    
-    /* Initialize OSBDM GPIO pins */
-    board_osbdm_gpio_init();
-    
-    /* Initialize target power control and ADC */
-    board_target_power_init();
-    
-    /* Initialize USB OSBDM device */
+    board_led_init();
+    SysTick_Config(SystemCoreClock / 1000U);
+
+    /* Keep target power disabled by default for safety. */
+    board_target_power_set(false);
+
+    /* Initialize OSBDM USB stack and protocol endpoint state. */
+    debug_cmd_pending = 0;
     usb_osbdm_init();
-    
-    /* Initialize OSBDM protocol layer */
-    read_board_id();    /* Returns board ID (can be customized) */
-    read_osbdm_id();    /* Returns OSBDM firmware version */
-    t_debug_init();     /* Initialize debug interface to safe state */
-    
-    /* Turn on green LED to indicate ready */
-    LED_GREEN_ON();
-    LED_RED_OFF();
-    LED_ORANGE_OFF();
-    
-    /* Enable target power by default */
-    board_target_power_set(true);
-    
-    /* Main loop */
+
+    /* Initial LED state: running on, others off. */
+    board_led_on(0);
+    board_led_off(1);
+    board_led_off(2);
+
+    /* Main loop: process USB requests and execute OSBDM commands. */
     while (1) {
-        /* Monitor error conditions and update red LED */
-        led_error_process();
-        
-        /* Update status LED (green) */
-        led_status_process();
-        
-        /* Process OSBDM commands when received */
-        if (debug_cmd_pending) {
-            /* Execute the command */
+        uint32_t now_ms = systick_get();
+
+        usb_osbdm_poll();
+
+        if ((now_ms - last_boot_req_sample_ms) >= 100U) {
+            last_boot_req_sample_ms = now_ms;
+
+            if (GPIO_ReadInputBit(BOOT_REQ_PORT, BOOT_REQ_PIN) == BIT_RESET) {
+                if (boot_req_low_samples < 30U) {
+                    boot_req_low_samples++;
+                }
+                if (boot_req_low_samples >= 30U) {
+                    board_request_bootloader();
+                }
+            } else {
+                boot_req_low_samples = 0U;
+            }
+        }
+
+        if (debug_cmd_pending != 0U) {
+            board_led_toggle(1);
             debug_command_exec();
-            
-            /* Clear pending flag */
             debug_cmd_pending = 0;
+            board_led_toggle(1);
         }
     }
     
@@ -221,7 +206,6 @@ int main(void)
 int fputc(int ch, FILE *f)
 {
     (void)f;
-    /* Could redirect to UART for debugging */
     return ch;
 }
 

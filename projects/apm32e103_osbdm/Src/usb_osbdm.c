@@ -7,16 +7,23 @@
  */
 
 #include "usb_osbdm.h"
+#include "board.h"
 #include "usbd_core.h"
+#include "usb_dfu.h"
 #include "cmd_processing.h"
 #include <string.h>
 
 /* USB Bus ID */
 #define BUSID                       0
 
+/* DFU runtime descriptor size: interface + functional descriptor */
+#define DFU_RUNTIME_DESC_SIZE       18
+#define USBD_DFU_RUNTIME_ENABLE     0
+
 /* Configuration descriptor size */
-#define CONFIG_DESC_SIZE            (9 + 9 + 7 + 7)  /* Config + Interface + 2 Endpoints */
-#define INTERFACE_NUM               1
+#define CONFIG_DESC_SIZE            (9 + 9 + 7 + 7 + USBD_DFU_RUNTIME_ENABLE * DFU_RUNTIME_DESC_SIZE)
+#define INTERFACE_NUM               (1 + USBD_DFU_RUNTIME_ENABLE)
+#define DFU_RUNTIME_INTF_NUM        1
 
 /*==============================================================================
  * USB Buffers
@@ -41,7 +48,7 @@ static const uint8_t device_descriptor[] = {
         0x00,           /* bDeviceProtocol */
         USBD_VID,       /* idVendor */
         USBD_PID,       /* idProduct */
-        0x0100,         /* bcdDevice */
+        0x0000,         /* bcdDevice */
         0x01            /* bNumConfigurations */
     ),
 };
@@ -83,6 +90,17 @@ static const uint8_t config_descriptor_fs[] = {
         OSBDM_EP_MPS_FS,
         0x00
     ),
+
+#if USBD_DFU_RUNTIME_ENABLE
+    /* DFU Runtime Interface + Functional Descriptor */
+    USB_INTERFACE_DESCRIPTOR_INIT(DFU_RUNTIME_INTF_NUM, 0x00, 0x00, USB_DEVICE_CLASS_APP_SPECIFIC, DFU_SUBCLASS_DFU, DFU_PROTOCOL_RUNTIME, 0x04),
+    0x09,
+    DFU_FUNC_DESC,
+    DFU_ATTR_WILL_DETACH | DFU_ATTR_CAN_DNLOAD,
+    WBVAL(0xff),
+    WBVAL(0x400),
+    WBVAL(0x011a),
+#endif
 };
 
 /* Device Qualifier Descriptor (for High Speed capable devices) */
@@ -102,7 +120,94 @@ static const char *string_descriptors[] = {
     "ARM",                          /* Manufacturer */
     "OSBDM Debug Port",             /* Product */
     "OSBDM001",                     /* Serial Number */
+    "OSBDM DFU Runtime",            /* DFU Runtime */
 };
+
+#if USBD_DFU_RUNTIME_ENABLE
+static uint8_t g_dfu_runtime_state = DFU_STATE_APP_IDLE;
+static uint8_t g_dfu_runtime_status[6] = { DFU_STATUS_OK, 0, 0, 0, DFU_STATE_APP_IDLE, 0 };
+static volatile uint8_t g_dfu_runtime_detach_pending = 0;
+static volatile uint32_t g_dfu_runtime_detach_delay = 0;
+
+#define DFU_RUNTIME_DETACH_DELAY_LOOPS 200000U
+
+static void dfu_runtime_poll(void)
+{
+    if (!g_dfu_runtime_detach_pending) {
+        return;
+    }
+
+    if (g_dfu_runtime_detach_delay > 0) {
+        g_dfu_runtime_detach_delay--;
+        return;
+    }
+
+    board_request_bootloader();
+}
+
+static int dfu_runtime_class_interface_request_handler(uint8_t busid, struct usb_setup_packet *setup, uint8_t **data, uint32_t *len)
+{
+    (void)busid;
+
+    switch (setup->bRequest) {
+        case DFU_REQUEST_DETACH:
+            g_dfu_runtime_state = DFU_STATE_APP_DETACH;
+            g_dfu_runtime_status[4] = g_dfu_runtime_state;
+            g_dfu_runtime_detach_pending = 1;
+            g_dfu_runtime_detach_delay = DFU_RUNTIME_DETACH_DELAY_LOOPS;
+            *len = 0;
+            break;
+
+        case DFU_REQUEST_GETSTATUS:
+            if (g_dfu_runtime_state == DFU_STATE_APP_DETACH) {
+                g_dfu_runtime_status[1] = 10;
+                g_dfu_runtime_status[2] = 0;
+                g_dfu_runtime_status[3] = 0;
+            }
+            memcpy(*data, g_dfu_runtime_status, sizeof(g_dfu_runtime_status));
+            *len = sizeof(g_dfu_runtime_status);
+            break;
+
+        case DFU_REQUEST_GETSTATE:
+            (*data)[0] = g_dfu_runtime_state;
+            *len = 1;
+            break;
+
+        case DFU_REQUEST_CLRSTATUS:
+        case DFU_REQUEST_ABORT:
+            g_dfu_runtime_state = DFU_STATE_APP_IDLE;
+            g_dfu_runtime_status[0] = DFU_STATUS_OK;
+            g_dfu_runtime_status[4] = g_dfu_runtime_state;
+            g_dfu_runtime_detach_pending = 0;
+            g_dfu_runtime_detach_delay = 0;
+            *len = 0;
+            break;
+
+        default:
+            return -1;
+    }
+
+    return 0;
+}
+
+static void dfu_runtime_notify_handler(uint8_t busid, uint8_t event, void *arg)
+{
+    (void)busid;
+    (void)arg;
+
+    if (event == USBD_EVENT_RESET) {
+        g_dfu_runtime_state = DFU_STATE_APP_IDLE;
+        g_dfu_runtime_detach_pending = 0;
+        g_dfu_runtime_detach_delay = 0;
+        g_dfu_runtime_status[0] = DFU_STATUS_OK;
+        g_dfu_runtime_status[1] = 0;
+        g_dfu_runtime_status[2] = 0;
+        g_dfu_runtime_status[3] = 0;
+        g_dfu_runtime_status[4] = DFU_STATE_APP_IDLE;
+        g_dfu_runtime_status[5] = 0;
+    }
+}
+#endif
 
 /*==============================================================================
  * USB Descriptor Callbacks
@@ -227,6 +332,10 @@ static void usbd_event_handler(uint8_t busid, uint8_t event)
 
 static struct usbd_interface osbdm_interface;
 
+#if USBD_DFU_RUNTIME_ENABLE
+static struct usbd_interface dfu_runtime_intf;
+#endif
+
 static struct usbd_endpoint osbdm_in_ep = {
     .ep_addr = OSBDM_IN_EP,
     .ep_cb   = osbdm_in_callback
@@ -236,6 +345,35 @@ static struct usbd_endpoint osbdm_out_ep = {
     .ep_addr = OSBDM_OUT_EP,
     .ep_cb   = osbdm_out_callback
 };
+
+void usb_dc_low_level_init(void)
+{
+    GPIO_Config_T gpioConfig;
+
+    RCM_EnableAPB2PeriphClock(RCM_APB2_PERIPH_GPIOA | RCM_APB2_PERIPH_AFIO);
+    RCM_EnableAPB1PeriphClock(RCM_APB1_PERIPH_USB);
+
+    gpioConfig.mode = GPIO_MODE_IN_FLOATING;
+    gpioConfig.speed = GPIO_SPEED_50MHz;
+    gpioConfig.pin = USB_DP_PIN | USB_DM_PIN;
+    GPIO_Config(USB_PORT, &gpioConfig);
+
+    gpioConfig.mode = GPIO_MODE_OUT_PP;
+    gpioConfig.pin = USB_PU_PIN;
+    GPIO_Config(USB_PU_PORT, &gpioConfig);
+    GPIO_SetBit(USB_PU_PORT, USB_PU_PIN);
+
+    NVIC_ConfigPriorityGroup(NVIC_PRIORITY_GROUP_2);
+    NVIC_EnableIRQRequest(USBD1_LP_CAN1_RX0_IRQn, 1, 0);
+    NVIC_EnableIRQRequest(USBDWakeUp_IRQn, 1, 1);
+}
+
+void usb_dc_low_level_deinit(void)
+{
+    NVIC_DisableIRQ(USBD1_LP_CAN1_RX0_IRQn);
+    NVIC_DisableIRQ(USBDWakeUp_IRQn);
+    GPIO_ResetBit(USB_PU_PORT, USB_PU_PIN);
+}
 
 /*==============================================================================
  * Public Functions
@@ -251,6 +389,14 @@ void usb_osbdm_init(void)
     
     /* Add interface */
     usbd_add_interface(BUSID, &osbdm_interface);
+
+#if USBD_DFU_RUNTIME_ENABLE
+    dfu_runtime_intf.class_interface_handler = dfu_runtime_class_interface_request_handler;
+    dfu_runtime_intf.class_endpoint_handler = NULL;
+    dfu_runtime_intf.vendor_handler = NULL;
+    dfu_runtime_intf.notify_handler = dfu_runtime_notify_handler;
+    usbd_add_interface(BUSID, &dfu_runtime_intf);
+#endif
     
     /* Add endpoints */
     usbd_add_endpoint(BUSID, &osbdm_in_ep);
@@ -260,7 +406,7 @@ void usb_osbdm_init(void)
      * For APM32E103: USB base address is USBD_BASE
      * CherryUSB will handle the USB peripheral initialization
      */
-    usbd_initialize(BUSID, (uint32_t)USBD_BASE, usbd_event_handler);
+    usbd_initialize(BUSID, USB_BASE_ADDR, usbd_event_handler);
 }
 
 /**
@@ -277,4 +423,11 @@ int32_t usb_osbdm_send(uint8_t *data, uint32_t len)
 int32_t usb_osbdm_ep_in_send(uint8_t *data, uint32_t len)
 {
     return usb_osbdm_send(data, len);
+}
+
+void usb_osbdm_poll(void)
+{
+#if USBD_DFU_RUNTIME_ENABLE
+    dfu_runtime_poll();
+#endif
 }
