@@ -22,6 +22,27 @@ set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 # Project name
 project(apm32e103_cherrydap C ASM)
 
+# System clock selection (MHz): 72, 96, 120 (default)
+set(APM32_SYSCLK_MHZ "120" CACHE STRING "APM32 SYSCLK in MHz (72/96/120)")
+set_property(CACHE APM32_SYSCLK_MHZ PROPERTY STRINGS 72 96 120)
+
+if(APM32_SYSCLK_MHZ STREQUAL "72")
+    set(APM32_SYSCLK_DEFINE CHERRYDAP_SYSCLK_72M)
+    set(APM32_SYSCLK_SUFFIX 72m)
+elseif(APM32_SYSCLK_MHZ STREQUAL "96")
+    set(APM32_SYSCLK_DEFINE CHERRYDAP_SYSCLK_96M)
+    set(APM32_SYSCLK_SUFFIX 96m)
+elseif(APM32_SYSCLK_MHZ STREQUAL "120")
+    set(APM32_SYSCLK_DEFINE CHERRYDAP_SYSCLK_120M)
+    set(APM32_SYSCLK_SUFFIX 120m)
+else()
+    message(FATAL_ERROR "Unsupported APM32_SYSCLK_MHZ='${APM32_SYSCLK_MHZ}'. Use one of: 72, 96, 120")
+endif()
+
+message(STATUS "APM32 SYSCLK: ${APM32_SYSCLK_MHZ} MHz")
+
+set(APM32_ARTIFACT_NAME "${PROJECT_NAME}_${APM32_SYSCLK_SUFFIX}")
+
 # MCU settings
 set(MCU_FAMILY APM32E10x)
 set(MCU_MODEL APM32E103xE)
@@ -37,7 +58,7 @@ set(CMAKE_ASM_FLAGS "-mcpu=cortex-m3 -mthumb -mfloat-abi=soft -x assembler-with-
 
 # Linker flags
 set(CMAKE_EXE_LINKER_FLAGS "-mcpu=cortex-m3 -mthumb -mfloat-abi=soft -T${MCU_LINKER_SCRIPT} \
--Wl,-Map=${PROJECT_NAME}.map,--cref -Wl,--gc-sections \
+-Wl,-Map=${APM32_ARTIFACT_NAME}.map,--cref -Wl,--gc-sections \
 -specs=nano.specs -specs=nosys.specs \
 -Wl,--print-memory-usage")
 
@@ -47,6 +68,7 @@ set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-flto")
 add_definitions(
     -DAPM32E10X_HD
     -DUSE_STDPERIPH_DRIVER
+    -D${APM32_SYSCLK_DEFINE}
     -DVECT_TAB_OFFSET=0x2000  # Application starts at 0x08002000
 )
 
@@ -122,16 +144,17 @@ set(SOURCES
 
 # Create executable
 add_executable(${PROJECT_NAME} ${SOURCES})
+set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${APM32_ARTIFACT_NAME})
 
 # Create hex file
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${PROJECT_NAME}> ${PROJECT_NAME}.hex
+    COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${PROJECT_NAME}> ${APM32_ARTIFACT_NAME}.hex
     COMMENT "Creating HEX file"
 )
 
 # Create bin file
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${PROJECT_NAME}> ${PROJECT_NAME}.bin
+    COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${PROJECT_NAME}> ${APM32_ARTIFACT_NAME}.bin
     COMMENT "Creating BIN file"
 )
 

@@ -22,6 +22,25 @@ set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 # Project name
 project(apm32e103_osbdm C ASM)
 
+# System clock selection (MHz): 72, 96, 120 (default)
+set(APM32_SYSCLK_MHZ "120" CACHE STRING "APM32 SYSCLK in MHz (72/96/120)")
+set_property(CACHE APM32_SYSCLK_MHZ PROPERTY STRINGS 72 96 120)
+
+if(APM32_SYSCLK_MHZ STREQUAL "72")
+    set(APM32_SYSCLK_DEFINE CHERRYDAP_SYSCLK_72M)
+    set(APM32_SYSCLK_SUFFIX 72m)
+elseif(APM32_SYSCLK_MHZ STREQUAL "96")
+    set(APM32_SYSCLK_DEFINE CHERRYDAP_SYSCLK_96M)
+    set(APM32_SYSCLK_SUFFIX 96m)
+elseif(APM32_SYSCLK_MHZ STREQUAL "120")
+    set(APM32_SYSCLK_DEFINE CHERRYDAP_SYSCLK_120M)
+    set(APM32_SYSCLK_SUFFIX 120m)
+else()
+    message(FATAL_ERROR "Unsupported APM32_SYSCLK_MHZ='${APM32_SYSCLK_MHZ}'. Use one of: 72, 96, 120")
+endif()
+
+message(STATUS "APM32 SYSCLK: ${APM32_SYSCLK_MHZ} MHz")
+
 # MCU settings
 set(MCU_FAMILY APM32E10x)
 set(MCU_MODEL APM32E103xE)
@@ -37,7 +56,7 @@ set(CMAKE_ASM_FLAGS "-mcpu=cortex-m3 -mthumb -mfloat-abi=soft -x assembler-with-
 
 # Linker flags
 set(CMAKE_EXE_LINKER_FLAGS "-mcpu=cortex-m3 -mthumb -mfloat-abi=soft -T${MCU_LINKER_SCRIPT} \
--Wl,-Map=${PROJECT_NAME}.map,--cref -Wl,--gc-sections \
+-Wl,-Map=${PROJECT_NAME}_${APM32_SYSCLK_SUFFIX}.map,--cref -Wl,--gc-sections \
 -specs=nano.specs -specs=nosys.specs \
 -Wl,--print-memory-usage")
 
@@ -47,6 +66,7 @@ set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-flto")
 add_definitions(
     -DAPM32E10X_HD
     -DUSE_STDPERIPH_DRIVER
+    -D${APM32_SYSCLK_DEFINE}
     -DVECT_TAB_OFFSET=0x2000  # Application starts at 0x08002000
 )
 
@@ -119,7 +139,13 @@ endif()
 message(STATUS "OSBDM active JTAG driver: ${OSBDM_ACTIVE_JTAG_DRIVER}")
 
 # Artifact name includes active target architecture/driver.
-set(OSBDM_ARTIFACT_NAME "${PROJECT_NAME}_${OSBDM_ACTIVE_JTAG_DRIVER}")
+set(OSBDM_ARTIFACT_NAME "${PROJECT_NAME}_${OSBDM_ACTIVE_JTAG_DRIVER}_${APM32_SYSCLK_SUFFIX}")
+
+# Re-apply linker flags after artifact name is finalized so map file matches outputs.
+set(CMAKE_EXE_LINKER_FLAGS "-mcpu=cortex-m3 -mthumb -mfloat-abi=soft -T${MCU_LINKER_SCRIPT} \
+-Wl,-Map=${OSBDM_ARTIFACT_NAME}.map,--cref -Wl,--gc-sections \
+-specs=nano.specs -specs=nosys.specs \
+-Wl,--print-memory-usage")
 
 # OSBDM BDM drivers
 # Note: BDM drivers disabled for now. Need similar porting work as JTAG drivers.

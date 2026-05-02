@@ -96,8 +96,16 @@ static void board_system_clock_init(void)
         RCM_ConfigAPB2(RCM_APB_DIV_1);
         RCM_ConfigAPB1(RCM_APB_DIV_2);
 
-        /* HSE = 8MHz, PLL x15 => SYSCLK = 120MHz */
+    #if defined(CHERRYDAP_SYSCLK_72M)
+        /* HSE = 8MHz, PLL x9 => SYSCLK = 72MHz */
+        RCM_ConfigPLL(RCM_PLLSEL_HSE, RCM_PLLMF_9);
+    #elif defined(CHERRYDAP_SYSCLK_96M)
+        /* HSE = 8MHz, PLL x12 => SYSCLK = 96MHz */
+        RCM_ConfigPLL(RCM_PLLSEL_HSE, RCM_PLLMF_12);
+    #else
+        /* Default: HSE = 8MHz, PLL x15 => SYSCLK = 120MHz */
         RCM_ConfigPLL(RCM_PLLSEL_HSE, RCM_PLLMF_15);
+    #endif
         RCM_EnablePLL();
         while (RCM_ReadStatusFlag(RCM_FLAG_PLLRDY) == RESET) {
         }
@@ -106,8 +114,16 @@ static void board_system_clock_init(void)
         while (RCM_ReadSYSCLKSource() != RCM_SYSCLK_SEL_PLL) {
         }
 
+    #if defined(CHERRYDAP_SYSCLK_72M)
+        /* USB clock = PLL / 1.5 = 72MHz / 1.5 = 48MHz */
+        RCM_ConfigUSBCLK(RCM_USB_DIV_1_5);
+    #elif defined(CHERRYDAP_SYSCLK_96M)
+        /* USB clock = PLL / 2 = 96MHz / 2 = 48MHz */
+        RCM_ConfigUSBCLK(RCM_USB_DIV_2);
+    #else
         /* USB clock = PLL / 2.5 = 120MHz / 2.5 = 48MHz */
         RCM_ConfigUSBCLK(RCM_USB_DIV_2_5);
+    #endif
 
         SystemCoreClockUpdate();
         RCM_EnableCSS();

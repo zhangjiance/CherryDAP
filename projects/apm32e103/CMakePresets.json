@@ -1,0 +1,114 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}"
+    },
+    {
+      "name": "release-72m",
+      "inherits": "base",
+      "displayName": "APM32E103 CherryDAP Release 72MHz",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "APM32_SYSCLK_MHZ": "72"
+      }
+    },
+    {
+      "name": "release-96m",
+      "inherits": "base",
+      "displayName": "APM32E103 CherryDAP Release 96MHz",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "APM32_SYSCLK_MHZ": "96"
+      }
+    },
+    {
+      "name": "release-120m",
+      "inherits": "base",
+      "displayName": "APM32E103 CherryDAP Release 120MHz",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "APM32_SYSCLK_MHZ": "120"
+      }
+    },
+    {
+      "name": "debug-72m",
+      "inherits": "base",
+      "displayName": "APM32E103 CherryDAP Debug 72MHz",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "APM32_SYSCLK_MHZ": "72"
+      }
+    },
+    {
+      "name": "debug-96m",
+      "inherits": "base",
+      "displayName": "APM32E103 CherryDAP Debug 96MHz",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "APM32_SYSCLK_MHZ": "96"
+      }
+    },
+    {
+      "name": "debug-120m",
+      "inherits": "base",
+      "displayName": "APM32E103 CherryDAP Debug 120MHz",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "APM32_SYSCLK_MHZ": "120"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "release-72m",
+      "configurePreset": "release-72m"
+    },
+    {
+      "name": "build-release-72m",
+      "configurePreset": "release-72m"
+    },
+    {
+      "name": "release-96m",
+      "configurePreset": "release-96m"
+    },
+    {
+      "name": "build-release-96m",
+      "configurePreset": "release-96m"
+    },
+    {
+      "name": "release-120m",
+      "configurePreset": "release-120m"
+    },
+    {
+      "name": "build-release-120m",
+      "configurePreset": "release-120m"
+    },
+    {
+      "name": "debug-72m",
+      "configurePreset": "debug-72m"
+    },
+    {
+      "name": "build-debug-72m",
+      "configurePreset": "debug-72m"
+    },
+    {
+      "name": "debug-96m",
+      "configurePreset": "debug-96m"
+    },
+    {
+      "name": "build-debug-96m",
+      "configurePreset": "debug-96m"
+    },
+    {
+      "name": "debug-120m",
+      "configurePreset": "debug-120m"
+    },
+    {
+      "name": "build-debug-120m",
+      "configurePreset": "debug-120m"
+    }
+  ]
+}
