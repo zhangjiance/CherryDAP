@@ -15,7 +15,7 @@ ENTRY(Reset_Handler)
 /* Highest address of the user mode stack */
 _estack = 0x20020000;    /* end of RAM (128KB) */
 /* BlackMagic DFU validity check expects the initial MSP to be within 0x20000000-0x2001FFFF. */
-_end_stack = 0x2001FFFC; /* startup_apm32e10x_hd.S uses this value in vector table */
+_end_stack = 0x20004FFC; /* startup_apm32e10x_hd.S uses this value in vector table */
 
 /* Generate a link error if heap and stack don't fit into RAM */
 _Min_Heap_Size = 0x200;      /* required amount of heap  */
@@ -26,7 +26,7 @@ MEMORY
 {
   /* Application Flash starting at 0x08002000 (after DFU bootloader) */
   FLASH (rx)      : ORIGIN = 0x08002000, LENGTH = 504K
-  RAM (xrw)       : ORIGIN = 0x20000000, LENGTH = 128K
+  RAM (xrw)       : ORIGIN = 0x20000000, LENGTH = 20K
 }
 
 /* Define output sections */

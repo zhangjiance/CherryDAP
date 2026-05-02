@@ -24,8 +24,14 @@
 #define __WEAK __attribute__((weak))
 #endif
 
-/// Processor Clock
+/// Processor Clock (must match board_system_clock_init profile)
+#if defined(CHERRYDAP_SYSCLK_72M)
+#define CPU_CLOCK               72000000U
+#elif defined(CHERRYDAP_SYSCLK_96M)
+#define CPU_CLOCK               96000000U
+#else
 #define CPU_CLOCK               120000000U
+#endif
 #define IO_PORT_WRITE_CYCLES    4U
 #define DELAY_SLOW_CYCLES       4U
 #define DELAY_FAST_CYCLES       1U
@@ -47,7 +53,7 @@
 #define SWO_STREAM              0
 
 /// Timestamp
-#define TIMESTAMP_CLOCK         120000000U
+#define TIMESTAMP_CLOCK         CPU_CLOCK
 
 /// Target Device
 #define TARGET_DEVICE_FIXED     0
