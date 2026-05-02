@@ -176,10 +176,10 @@ int main(void)
             last_boot_req_sample_ms = now_ms;
 
             if (GPIO_ReadInputBit(BOOT_REQ_PORT, BOOT_REQ_PIN) == BIT_RESET) {
-                if (boot_req_low_samples < 30U) {
+                if (boot_req_low_samples < 10U) {
                     boot_req_low_samples++;
                 }
-                if (boot_req_low_samples >= 30U) {
+                if (boot_req_low_samples >= 10U) {
                     board_request_bootloader();
                 }
             } else {
