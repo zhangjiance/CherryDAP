@@ -347,9 +347,6 @@ void t_set_clock(uint32_t clock)
 void delay (void)
 {
     __NOP();
-    __NOP();
-    __NOP();
-    __NOP();
 }
 
 
