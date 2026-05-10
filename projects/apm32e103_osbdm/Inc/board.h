@@ -24,9 +24,13 @@ extern "C" {
 #define LED_PORT            GPIOB
 #define LED_RCC             RCM_APB2_PERIPH_GPIOB
 
-#define LED_RUNNING_PIN     GPIO_PIN_2   /* PB2 - LED0 Yellow (Running) */
-#define LED_IDLE_PIN        GPIO_PIN_10  /* PB10 - LED1 Orange (Idle) */
-#define LED_ERROR_PIN       GPIO_PIN_11  /* PB11 - LED2 Red (Error) */
+#define LED_ERROR_PIN       GPIO_PIN_2   /* PB2 - LED0 Red (Error) */
+#define LED_RUNNING_PIN     GPIO_PIN_10  /* PB10 - LED1 GREEN (Running) */
+#define LED_IDLE_PIN        GPIO_PIN_11  /* PB11 - LED2 BLUE (Idle) */
+
+#define LED_ERROR_NUM        0
+#define LED_RUNNING_NUM      1
+#define LED_IDLE_NUM         2
 
 /* JTAG/SWD Pin Definitions - BlackMagic Native HW3 */
 #define JTAG_PORT           GPIOA
@@ -116,6 +120,7 @@ uint32_t board_target_voltage_adc_mv(void);
 uint32_t board_target_voltage_sense_mv(void);
 bool board_target_voltage_is_present(uint32_t threshold_mv);
 void board_request_bootloader(void);
+void board_boot_timer_init(void);
 
 #ifdef __cplusplus
 }

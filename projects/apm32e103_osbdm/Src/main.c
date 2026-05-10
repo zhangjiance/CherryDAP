@@ -153,6 +153,7 @@ int main(void)
     board_init();
     board_led_init();
     SysTick_Config(SystemCoreClock / 1000U);
+    board_boot_timer_init();
 
     /* Keep target power disabled by default for safety. */
     board_target_power_set(false);
@@ -162,36 +163,21 @@ int main(void)
     usb_osbdm_init();
 
     /* Initial LED state: running on, others off. */
-    board_led_on(0);
-    board_led_off(1);
-    board_led_off(2);
+    board_led_on(LED_IDLE_NUM);
+    board_led_off(LED_RUNNING_NUM);
+    board_led_off(LED_ERROR_NUM);
 
     /* Main loop: process USB requests and execute OSBDM commands. */
     while (1) {
-        uint32_t now_ms = systick_get();
 
         usb_osbdm_poll();
 
-        if ((now_ms - last_boot_req_sample_ms) >= 100U) {
-            last_boot_req_sample_ms = now_ms;
-
-            if (GPIO_ReadInputBit(BOOT_REQ_PORT, BOOT_REQ_PIN) == BIT_RESET) {
-                if (boot_req_low_samples < 10U) {
-                    boot_req_low_samples++;
-                }
-                if (boot_req_low_samples >= 10U) {
-                    board_request_bootloader();
-                }
-            } else {
-                boot_req_low_samples = 0U;
-            }
-        }
 
         if (debug_cmd_pending != 0U) {
-            board_led_toggle(1);
+            board_led_toggle(LED_RUNNING_NUM);
             debug_command_exec();
             debug_cmd_pending = 0;
-            board_led_toggle(1);
+            board_led_toggle(LED_RUNNING_NUM);
         }
     }
     

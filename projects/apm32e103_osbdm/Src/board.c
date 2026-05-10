@@ -9,6 +9,7 @@
 #include "board.h"
 #include "apm32e10x_adc.h"
 #include "apm32e10x_fmc.h"
+#include "apm32e10x_tmr.h"
 
 static volatile uint8_t g_target_power_enabled = 0;
 static volatile uint8_t g_target_voltage_adc_ready = 0;
@@ -281,6 +282,25 @@ void board_request_bootloader(void)
     }
 }
 
+void board_boot_timer_init(void)
+{
+    TMR_BaseConfig_T tmr4cfg;
+
+    RCM_EnableAPB1PeriphClock(RCM_APB1_PERIPH_TMR4);
+
+    TMR_ConfigTimeBaseStructInit(&tmr4cfg);
+    tmr4cfg.division   = (uint16_t)(SystemCoreClock / 10000U) - 1U;
+    tmr4cfg.period     = 1000U - 1U;
+    tmr4cfg.countMode  = TMR_COUNTER_MODE_UP;
+    TMR_ConfigTimeBase(TMR4, &tmr4cfg);
+
+    TMR_EnableInterrupt(TMR4, TMR_INT_UPDATE);
+    NVIC_EnableIRQ(TMR4_IRQn);
+
+    TMR_Enable(TMR4);
+}
+
+
 /*!
  * @brief       Initialize LED pins
  */
@@ -308,13 +328,13 @@ void board_led_init(void)
 void board_led_on(uint8_t led_num)
 {
     switch(led_num) {
-        case 0:
+        case LED_RUNNING_NUM:
             GPIO_ResetBit(LED_PORT, LED_RUNNING_PIN);
             break;
-        case 1:
+        case LED_IDLE_NUM:
             GPIO_ResetBit(LED_PORT, LED_IDLE_PIN);
             break;
-        case 2:
+        case LED_ERROR_NUM:
             GPIO_ResetBit(LED_PORT, LED_ERROR_PIN);
             break;
     }
@@ -327,13 +347,13 @@ void board_led_on(uint8_t led_num)
 void board_led_off(uint8_t led_num)
 {
     switch(led_num) {
-        case 0:
+        case LED_RUNNING_NUM:
             GPIO_SetBit(LED_PORT, LED_RUNNING_PIN);
             break;
-        case 1:
+        case LED_IDLE_NUM:
             GPIO_SetBit(LED_PORT, LED_IDLE_PIN);
             break;
-        case 2:
+        case LED_ERROR_NUM:
             GPIO_SetBit(LED_PORT, LED_ERROR_PIN);
             break;
     }
@@ -348,13 +368,13 @@ void board_led_toggle(uint8_t led_num)
     uint16_t pin;
     
     switch(led_num) {
-        case 0:
+        case LED_RUNNING_NUM:
             pin = LED_RUNNING_PIN;
             break;
-        case 1:
+        case LED_IDLE_NUM:
             pin = LED_IDLE_PIN;
             break;
-        case 2:
+        case LED_ERROR_NUM:
             pin = LED_ERROR_PIN;
             break;
         default:

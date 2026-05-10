@@ -97,6 +97,7 @@ file(GLOB STDPERIPH_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/../apm32e103/Drivers/APM32E10x_StdPeriphDriver/src/apm32e10x_rcm.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../apm32e103/Drivers/APM32E10x_StdPeriphDriver/src/apm32e10x_fmc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../apm32e103/Drivers/APM32E10x_StdPeriphDriver/src/apm32e10x_misc.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../apm32e103/Drivers/APM32E10x_StdPeriphDriver/src/apm32e10x_tmr.c
 )
 
 # CherryUSB sources
